@@ -63,7 +63,7 @@ function Invoke-SigmaPotato {
     [Console]::SetOut($StringWriter)
 
     # Binary Namespace
-    [SigmaPotato]::Main($Command)
+    [SigmaPotato]::Main("$Command")
 
     [Console]::SetOut($OldConsoleOut)
     $StringWriter.ToString()
