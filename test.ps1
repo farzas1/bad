@@ -18,7 +18,7 @@ function Invoke-BadPotato
     $StringWriter = New-Object IO.StringWriter
     [Console]::SetOut($StringWriter)
 
-    [ConsoleApp1]::main($Command)
+    [ConsoleApp1.Program]::main($Command)
 
     [Console]::SetOut($OldConsoleOut)
     $Results = $StringWriter.ToString()
