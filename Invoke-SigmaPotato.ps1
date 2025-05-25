@@ -25,13 +25,12 @@ function Invoke-SigmaPotato {
 
 
     Param (
-        [string]$Command,
+        [string]$Command="whoami",
         [switch]$Help
     )
 
 
-    if ($Help)     { return (Get-Help Invoke-SigmaPotato) }
-    if (!$Command) { return '[-] Must input command to execute.' }
+  
 
 
     # Gzip Compression and Base64 Encoding
