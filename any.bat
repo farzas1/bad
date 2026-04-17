@@ -1,0 +1,1 @@
+echo Sqopis@123 | C:\programdata\aaa\anydesk.exe --set-password
